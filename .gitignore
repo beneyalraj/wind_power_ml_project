@@ -1,0 +1,8 @@
+# Logs & Metrics (generated)
+logs/*.log
+logs/*.json
+metrics/*.json
+
+# Virtual Environment
+venv/
+env/

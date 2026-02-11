@@ -1,0 +1,26 @@
+stages:
+
+  data_ingestion:
+    cmd: python src/ingestion/load_data.py
+    deps:
+      - src/ingestion/load_data.py
+      - params.yaml
+    params:
+      - data_ingestion
+    outs:
+      - data/raw/wind_plant_data.h5
+    desc: "Download wind plant data from S3"
+  
+
+  validate_raw:
+    cmd: python src/data/validate_raw.py
+    deps:
+      - src/data/validate_raw.py
+      - data/raw/wind_plant_data.h5
+      - params.yaml
+    params:
+      - raw_validation
+    metrics:
+      - metrics/raw_validation.json:
+          cache: false
+    desc: "Validate raw HDF5 data structure and quality"

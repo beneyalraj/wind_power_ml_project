@@ -1,0 +1,86 @@
+base:
+  project: wind-power-production
+  env: dev
+
+data_ingestion:
+  s3_url: "s3://nrel-pds-windai/wind_plant_power/floris/v1.0.0/wind_plant_data.h5"
+  local_path: "data/raw/wind_plant_data.h5"
+  retries: 3
+  timeout: 30
+
+data_validation:
+  expected_columns: 48  
+  min_rows: 100000
+  null_threshold: 0.05
+
+logging:
+  level: INFO
+  log_dir: logs
+
+raw_validation:
+  sample_size: 10        
+  chunk_size: 10000      
+  
+  file:
+    must_exist: true
+    min_size_mb: 1000
+  
+  layout:
+    name_pattern: "^Layout"
+    min_layouts: 1
+  
+  required_datasets:
+    - "Wind Speed"
+    - "Wind Direction"
+    - "Turbulence Intensity"
+    - "Turbine Power"
+    - "Turbine Wind Speed"
+    - "Yaw Angles"
+
+  dtypes:
+    "Wind Speed": float32
+    "Wind Direction": float32
+    "Turbulence Intensity": float32
+    "Turbine Power": float32
+    "Turbine Wind Speed": float32
+    "Yaw Angles": float32
+
+  dimensions:
+    scenario_axis: 0
+    require_non_empty: true
+
+  constraints:
+    "Wind Speed":
+      min: 0
+      max: 50
+      allow_nan: false
+      allow_inf: false
+    
+    "Wind Direction":
+      min: 0
+      max: 360
+      allow_nan: false
+      allow_inf: false
+    
+    "Turbulence Intensity":
+      min: 0
+      max: 1.0
+      allow_nan: false
+      allow_inf: false
+    
+    "Turbine Power":
+      min: 0
+      allow_nan: false
+      allow_inf: false
+    
+    "Turbine Wind Speed":
+      min: 0
+      max: 50
+      allow_nan: false
+      allow_inf: false
+    
+    "Yaw Angles":
+      min: -180
+      max: 180
+      allow_nan: false
+      allow_inf: false
