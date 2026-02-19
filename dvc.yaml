@@ -13,9 +13,9 @@ stages:
   
 
   validate_raw:
-    cmd: python src/data/validate_raw.py
+    cmd: python src/data/validate/validate_raw.py
     deps:
-      - src/data/validate_raw.py
+      - src/data/validate/validate_raw.py
       - data/raw/wind_plant_data.h5
       - params.yaml
     params:
@@ -30,7 +30,7 @@ stages:
     deps:
       - src/data/extract/
       - src/core/config_manager.py
-      - configs/dataset.yaml
+      - configs/schema_lock.yaml
       - params.yaml
       - data/raw/wind_plant_data.h5
     params:
@@ -38,3 +38,13 @@ stages:
     outs:
       - data/interim/
     desc: "Extract scenario-level dataset from HDF5 to partitioned Parquet"
+
+  validate_processed:
+    cmd: python src/data/validate/validate_processed.py
+    deps:
+      - src/data/validate/validate_processed.py
+      - data/interim/
+    metrics:
+      - metrics/processed_validation.json:
+          cache: false
+    desc: "Validate processed scenario-level dataset"
