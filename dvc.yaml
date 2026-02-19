@@ -40,7 +40,7 @@ stages:
     desc: "Extract scenario-level dataset from HDF5 to partitioned Parquet"
 
   validate_processed:
-    cmd: python src/data/validate/validate_processed.py
+    cmd: python -m src.data.validation.validate_processed
     deps:
       - src/data/validate/validate_processed.py
       - data/interim/
