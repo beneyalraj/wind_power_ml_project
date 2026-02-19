@@ -24,3 +24,17 @@ stages:
       - metrics/raw_validation.json:
           cache: false
     desc: "Validate raw HDF5 data structure and quality"
+
+  extract_scenario_dataset:
+    cmd: python -m src.data.extract.extract_to_parquet
+    deps:
+      - src/data/extract/
+      - src/core/config_manager.py
+      - configs/dataset.yaml
+      - params.yaml
+      - data/raw/wind_plant_data.h5
+    params:
+      - extraction
+    outs:
+      - data/interim/
+    desc: "Extract scenario-level dataset from HDF5 to partitioned Parquet"

@@ -1,0 +1,60 @@
+dataset:
+  name: "scenario_level_dataset"
+  version: 1
+  grain: "scenario_level"
+  description: >
+    One row represents a single weather scenario
+    applied to a specific layout.
+
+primary_key:
+  - layout_id
+  - scenario_id
+
+identifiers:
+  layout_id:
+    raw_source: "derived:layout_name"
+    dtype: "string"
+    nullable: false
+
+  scenario_id:
+    raw_source: "derived:scenario_name"
+    dtype: "string"
+    nullable: false
+
+features:
+  wind_speed:
+    raw_source: "Wind Speed"
+    dtype: "float32"
+    nullable: false
+    min: 0.0
+    max: 50.0
+
+  wind_direction:
+    raw_source: "Wind Direction"
+    dtype: "float32"
+    nullable: false
+    min: 0.0
+    max: 360.0
+
+  turbulence_intensity:
+    raw_source: "Turbulence Intensity"
+    dtype: "float32"
+    nullable: false
+    min: 0.0
+    max: 1.0
+
+  num_turbines:
+    raw_source: "derived:num_turbines"
+    dtype: "int32"
+    nullable: false
+    min: 1
+    max: 1000
+
+target:
+  total_power:
+    raw_source: "Turbine Power"
+    aggregation: "sum"
+    dtype: "float32"
+    nullable: false
+    min: 0.0
+    max: 1000000000.0

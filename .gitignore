@@ -6,3 +6,14 @@ metrics/*.json
 # Virtual Environment
 venv/
 env/
+
+# DVC cache
+.dvc/cache/
+
+# Python
+__pycache__/
+*.pyc
+
+# Data artifacts
+data/interim/
+data/raw/

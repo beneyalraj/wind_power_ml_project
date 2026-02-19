@@ -2,6 +2,7 @@ base:
   project: wind-power-production
   env: dev
 
+#data ingestion
 data_ingestion:
   s3_url: "s3://nrel-pds-windai/wind_plant_power/floris/v1.0.0/wind_plant_data.h5"
   local_path: "data/raw/wind_plant_data.h5"
@@ -17,6 +18,7 @@ logging:
   level: INFO
   log_dir: logs
 
+#data validation
 raw_validation:
   sample_size: 10        
   chunk_size: 10000      
@@ -84,3 +86,35 @@ raw_validation:
       max: 180
       allow_nan: false
       allow_inf: false
+
+#extraction
+extraction:
+  input_path: "data/raw/wind_plant_data.h5"
+  output_path: "data/interim/scenario_dataset_v1"
+  schema_path: "configs/schema_lock.yaml"
+
+  # Execution mode
+  development_mode: true
+  max_layouts: 10         
+
+  # Partitioning (logical, not size-based)
+  partition_by:
+    - layout_id
+
+  # Compute batching controls
+  layouts_per_iteration: 10
+  rows_per_batch: 50000
+
+  # Parquet write settings
+  parquet:
+    compression: "snappy"
+    row_group_size: 10000
+    write_statistics: true
+
+  # Safety
+  overwrite_existing: false
+  deterministic_order: true  
+  
+  logging:
+    log_file: "logs/extraction.log"
+    progress_interval: 5000  # Log every 5000 rows

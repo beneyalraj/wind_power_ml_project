@@ -1,0 +1,10 @@
+problem:
+  name: wind_farm_power_prediction
+  type: regression
+  grain: scenario_level
+
+target:
+  name: total_power
+  unit: watts
+  dtype: float32
+  definition: sum_of_turbine_power
