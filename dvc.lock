@@ -1,0 +1,155 @@
+schema: '2.0'
+stages:
+  data_ingestion:
+    cmd: python src/ingestion/load_data.py
+    deps:
+    - path: params.yaml
+      hash: md5
+      md5: ce42a68ae40525632e1f372f14f2046a
+      size: 2265
+    - path: src/ingestion/load_data.py
+      hash: md5
+      md5: 2d401f592265472b815c6ad08d77416a
+      size: 1712
+    params:
+      params.yaml:
+        data_ingestion:
+          s3_url: 
+            s3://nrel-pds-windai/wind_plant_power/floris/v1.0.0/wind_plant_data.h5
+          local_path: data/raw/wind_plant_data.h5
+          retries: 3
+          timeout: 30
+    outs:
+    - path: data/raw/wind_plant_data.h5
+      hash: md5
+      md5: e8195c161ecdb47f2114451e75b2c16e
+      size: 4791736756
+  validate_raw:
+    cmd: python src/data/validate/validate_raw.py
+    deps:
+    - path: data/raw/wind_plant_data.h5
+      hash: md5
+      md5: e8195c161ecdb47f2114451e75b2c16e
+      size: 4791736756
+    - path: params.yaml
+      hash: md5
+      md5: ce42a68ae40525632e1f372f14f2046a
+      size: 2265
+    - path: src/data/validate/validate_raw.py
+      hash: md5
+      md5: b86d49addf6eaf7b24ffa17349b32600
+      size: 19764
+    params:
+      params.yaml:
+        raw_validation:
+          sample_size: 10
+          chunk_size: 10000
+          file:
+            must_exist: true
+            min_size_mb: 1000
+          layout:
+            name_pattern: ^Layout
+            min_layouts: 1
+          required_datasets:
+          - Wind Speed
+          - Wind Direction
+          - Turbulence Intensity
+          - Turbine Power
+          - Turbine Wind Speed
+          - Yaw Angles
+          dtypes:
+            Wind Speed: float32
+            Wind Direction: float32
+            Turbulence Intensity: float32
+            Turbine Power: float32
+            Turbine Wind Speed: float32
+            Yaw Angles: float32
+          dimensions:
+            scenario_axis: 0
+            require_non_empty: true
+          constraints:
+            Wind Speed:
+              min: 0
+              max: 50
+              allow_nan: false
+              allow_inf: false
+            Wind Direction:
+              min: 0
+              max: 360
+              allow_nan: false
+              allow_inf: false
+            Turbulence Intensity:
+              min: 0
+              max: 1.0
+              allow_nan: false
+              allow_inf: false
+            Turbine Power:
+              min: 0
+              allow_nan: false
+              allow_inf: false
+            Turbine Wind Speed:
+              min: 0
+              max: 50
+              allow_nan: false
+              allow_inf: false
+            Yaw Angles:
+              min: -180
+              max: 180
+              allow_nan: false
+              allow_inf: false
+    outs:
+    - path: metrics/raw_validation.json
+      hash: md5
+      md5: 9cadc54b00a5df96b2f469ed129ce3ff
+      size: 698
+  extract_scenario_dataset:
+    cmd: python -m src.data.extract.extract_to_parquet
+    deps:
+    - path: configs/schema_lock.yaml
+      hash: md5
+      md5: 1946d51ff79b6508524841058feaaa87
+      size: 1075
+    - path: data/raw/wind_plant_data.h5
+      hash: md5
+      md5: e8195c161ecdb47f2114451e75b2c16e
+      size: 4791736756
+    - path: params.yaml
+      hash: md5
+      md5: ce42a68ae40525632e1f372f14f2046a
+      size: 2265
+    - path: src/core/config_manager.py
+      hash: md5
+      md5: 3d5a254b0ab4f64dd1a408e2ff95114b
+      size: 4099
+    - path: src/data/extract/
+      hash: md5
+      md5: bd037f365ca1c95f9d56ac74c1bd226c.dir
+      size: 22413
+      nfiles: 6
+    params:
+      params.yaml:
+        extraction:
+          input_path: data/raw/wind_plant_data.h5
+          output_path: data/interim/scenario_dataset_v1
+          schema_path: configs/schema_lock.yaml
+          development_mode: true
+          max_layouts: 10
+          partition_by:
+          - layout_id
+          layouts_per_iteration: 10
+          rows_per_batch: 50000
+          parquet:
+            compression: snappy
+            row_group_size: 10000
+            write_statistics: true
+          overwrite_existing: false
+          deterministic_order: true
+          logging:
+            log_file: logs/extraction.log
+            progress_interval: 5000
+    outs:
+    - path: data/interim/scenario_dataset_v1
+      hash: md5
+      md5: 331eedaee53e00968b9cc10be0799980.dir
+      size: 181084
+      nfiles: 10

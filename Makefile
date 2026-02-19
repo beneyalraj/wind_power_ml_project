@@ -2,7 +2,7 @@ PYTHON := python3.10
 VENV := venv
 BIN := $(VENV)/bin
 
-.PHONY: venv install init_mlops clean help
+.PHONY: venv install init_mlops clean help repro full
 
 venv:
 	$(PYTHON) -m venv $(VENV)
@@ -15,19 +15,21 @@ install: venv
 init_mlops:
 	git init
 	# Ensure DVC is initialized only if it hasn't been yet
-	$(BIN)/dvc init --no-scm
+	$(BIN)/dvc init
 	git add .dvc .dvcignore
 	git commit -m "Initialize Git and DVC"
 
-download:
-	$(BIN)/python src/data/load_data.py
+repro:
+	$(BIN)/dvc repro
 
-validate-raw:
-	$(BIN)/python src/data/validate_raw.py
+full:
+	@echo "Switching to full production mode..."
+	@sed -i '' 's/development_mode: true/development_mode: false/' params.yaml
+	$(BIN)/dvc repro
+
 
 inspect:
 	$(BIN)/python src/data/inspect_h5.py
-
 
 clean:
 	rm -rf $(VENV)
@@ -39,7 +41,7 @@ help:
 	@echo "  make venv        : Create virtual environment"
 	@echo "  make install     : Install requirements"
 	@echo "  make init_mlops  : Initialize Git and DVC"
-	@echo "  make download     : Download data from S3"
-	@echo "  make validate-raw : Validate raw HDF5 data"
-	@echo "  make inspect      : Inspect HDF5 file structure"
-	@echo "  make clean       : Remove venv and temp files"
+	@echo "  make repro       : Run full DVC pipeline"
+	@echo "  make full        : Run full production extraction"
+	@echo "  make inspect     : Inspect raw HDF5"
+	@echo "  make clean       : Clean environment"
