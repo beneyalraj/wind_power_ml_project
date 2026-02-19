@@ -36,14 +36,14 @@ stages:
     params:
       - extraction
     outs:
-      - data/interim/
+      - data/interim/scenario_dataset_v1
     desc: "Extract scenario-level dataset from HDF5 to partitioned Parquet"
 
   validate_processed:
     cmd: python -m src.data.validate.validate_processed
     deps:
       - src/data/validate/validate_processed.py
-      - data/interim/
+      - data/interim/scenario_dataset_v1
     metrics:
       - metrics/processed_validation.json:
           cache: false
