@@ -17,3 +17,12 @@ __pycache__/
 # Data artifacts
 data/interim/
 data/raw/
+
+#notebooks
+.ipynb_checkpoints/
+
+.git
+data
+__pycache__
+
+.DS_Store

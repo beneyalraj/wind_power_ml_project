@@ -89,7 +89,8 @@ class PartitionedParquetWriter:
                 file_path,
                 index=False,
                 compression=self.compression,
-                engine="pyarrow"
+                engine="pyarrow",
+                use_dictionary=False
             )
 
     # =====================================================

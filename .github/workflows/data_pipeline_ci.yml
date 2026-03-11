@@ -1,0 +1,32 @@
+name: Data Pipeline CI
+
+on:
+  push:
+    branches: [ "main" ] # Optional: restrict pushes to specific branches
+  workflow_dispatch:     # THIS is the magic line that adds the manual button
+
+jobs:
+  test-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' 
+          cache: 'pip' 
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc[s3]
+          pip install apache-airflow==2.7.0
+
+      - name: Validate DVC pipeline
+        run: dvc dag
+
+      - name: Validate Airflow DAGs
+        run: |
+          python -c "from airflow.models import DagBag; bag = DagBag(dag_folder='airflow/dags', include_examples=False); assert not bag.import_errors, f'DAG import errors found: {bag.import_errors}'"

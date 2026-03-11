@@ -100,7 +100,7 @@ stages:
     outs:
     - path: metrics/raw_validation.json
       hash: md5
-      md5: 9cadc54b00a5df96b2f469ed129ce3ff
+      md5: 12e214ef1b2fde383a50ef790c9a6fa9
       size: 698
   extract_scenario_dataset:
     cmd: python -m src.data.extract.extract_to_parquet
@@ -123,8 +123,8 @@ stages:
       size: 4099
     - path: src/data/extract/
       hash: md5
-      md5: bd037f365ca1c95f9d56ac74c1bd226c.dir
-      size: 22413
+      md5: 2d554774a4121c026239e2e4011fdc90.dir
+      size: 22471
       nfiles: 6
     params:
       params.yaml:
@@ -150,6 +150,23 @@ stages:
     outs:
     - path: data/interim/scenario_dataset_v1
       hash: md5
-      md5: 331eedaee53e00968b9cc10be0799980.dir
-      size: 181084
+      md5: b91855a51dd513c50894d7e0ca1d6a12.dir
+      size: 171220
       nfiles: 10
+  validate_processed:
+    cmd: python -m src.data.validate.validate_processed
+    deps:
+    - path: data/interim/scenario_dataset_v1
+      hash: md5
+      md5: b91855a51dd513c50894d7e0ca1d6a12.dir
+      size: 171220
+      nfiles: 10
+    - path: src/data/validate/validate_processed.py
+      hash: md5
+      md5: 8f4029b588d024220d750bd74931f839
+      size: 4644
+    outs:
+    - path: metrics/processed_validation.json
+      hash: md5
+      md5: 1ee26b708fcb70e3850b5eed1a5d401c
+      size: 181
