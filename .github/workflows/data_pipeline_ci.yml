@@ -22,7 +22,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install dvc[s3]
-          pip install apache-airflow==2.7.0
+          # Install Airflow using official constraints to prevent pendulum/dependency conflicts
+          pip install "apache-airflow==2.7.0" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.7.0/constraints-3.11.txt"
 
       - name: Validate DVC pipeline
         run: dvc dag
