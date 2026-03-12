@@ -1,5 +1,4 @@
 stages:
-
   data_ingestion:
     cmd: python src/ingestion/load_data.py
     deps:
@@ -10,7 +9,6 @@ stages:
     outs:
       - data/raw/wind_plant_data.h5
     desc: "Download wind plant data from S3"
-  
 
   validate_raw:
     cmd: python src/data/validate/validate_raw.py
@@ -48,3 +46,13 @@ stages:
       - metrics/processed_validation.json:
           cache: false
     desc: "Validate processed scenario-level dataset"
+
+  dataset_split:
+    cmd: python src/dataset/split_dataset.py
+    deps:
+      - data/interim/scenario_dataset_v1
+      - src/dataset/split_dataset.py
+    outs:
+      - data/splits/train
+      - data/splits/validation
+      - data/splits/test

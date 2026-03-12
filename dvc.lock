@@ -170,3 +170,31 @@ stages:
       hash: md5
       md5: 1ee26b708fcb70e3850b5eed1a5d401c
       size: 181
+  dataset_split:
+    cmd: python src/dataset/split_dataset.py
+    deps:
+    - path: data/interim/scenario_dataset_v1
+      hash: md5
+      md5: b91855a51dd513c50894d7e0ca1d6a12.dir
+      size: 171220
+      nfiles: 10
+    - path: src/dataset/split_dataset.py
+      hash: md5
+      md5: 3c8d1bae7668cbab0e7350daec2f8350
+      size: 1489
+    outs:
+    - path: data/splits/test
+      hash: md5
+      md5: ebef02851513073a4cd0c56eae96456c.dir
+      size: 17157
+      nfiles: 1
+    - path: data/splits/train
+      hash: md5
+      md5: 949a06dccef54a1c9983f6e6be99bfcd.dir
+      size: 17099
+      nfiles: 1
+    - path: data/splits/validation
+      hash: md5
+      md5: 03d4b44e464d0a570cac384586346140.dir
+      size: 17059
+      nfiles: 1
