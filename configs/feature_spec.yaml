@@ -1,0 +1,16 @@
+target: total_power
+
+numerical_features:
+  - wind_speed
+  - wind_direction
+  - turbulence_intensity
+  - num_turbines
+
+categorical_features:
+  - layout_id
+  - scenario_id
+
+derived_features:
+  - wind_direction_sin
+  - wind_direction_cos
+  - wind_speed_squared
