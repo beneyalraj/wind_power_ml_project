@@ -1,14 +1,14 @@
 target: total_power
 
+identifiers:
+  - layout_id
+  - scenario_id
+
 numerical_features:
   - wind_speed
   - wind_direction
   - turbulence_intensity
   - num_turbines
-
-categorical_features:
-  - layout_id
-  - scenario_id
 
 derived_features:
   - wind_direction_sin

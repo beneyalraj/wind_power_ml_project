@@ -180,21 +180,43 @@ stages:
       nfiles: 10
     - path: src/dataset/split_dataset.py
       hash: md5
-      md5: 3c8d1bae7668cbab0e7350daec2f8350
-      size: 1489
+      md5: b6937425a30f0d23818ad7ff5bb422d7
+      size: 1497
     outs:
-    - path: data/splits/test
+    - path: data/interim/splits/test
       hash: md5
       md5: ebef02851513073a4cd0c56eae96456c.dir
       size: 17157
       nfiles: 1
-    - path: data/splits/train
+    - path: data/interim/splits/train
       hash: md5
       md5: 949a06dccef54a1c9983f6e6be99bfcd.dir
       size: 17099
       nfiles: 1
-    - path: data/splits/validation
+    - path: data/interim/splits/validation
       hash: md5
       md5: 03d4b44e464d0a570cac384586346140.dir
       size: 17059
       nfiles: 1
+  feature_extraction:
+    cmd: python src/features/build_features.py
+    deps:
+    - path: configs/feature_spec.yaml
+      hash: md5
+      md5: 13947bef276dd78ee460535b40b99d20
+      size: 248
+    - path: data/interim/splits
+      hash: md5
+      md5: af58d9016adaefaee0172f2a104c5b60.dir
+      size: 51315
+      nfiles: 3
+    - path: src/features/build_features.py
+      hash: md5
+      md5: 86e75562895b6f5c080d246c0f746ae6
+      size: 4378
+    outs:
+    - path: data/features
+      hash: md5
+      md5: 771df2af68ae06f5886746b9c5d36651.dir
+      size: 103440
+      nfiles: 3

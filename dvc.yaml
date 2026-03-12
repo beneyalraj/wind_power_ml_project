@@ -53,6 +53,15 @@ stages:
       - data/interim/scenario_dataset_v1
       - src/dataset/split_dataset.py
     outs:
-      - data/splits/train
-      - data/splits/validation
-      - data/splits/test
+      - data/interim/splits/train
+      - data/interim/splits/validation
+      - data/interim/splits/test
+
+  feature_extraction:
+    cmd: python src/features/build_features.py
+    deps:
+      - data/interim/splits
+      - configs/feature_spec.yaml
+      - src/features/build_features.py
+    outs:
+      - data/features

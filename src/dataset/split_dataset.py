@@ -3,7 +3,7 @@ import shutil
 import random
 
 DATA_PATH = Path("data/interim/scenario_dataset_v1")
-OUTPUT_PATH = Path("data/splits")
+OUTPUT_PATH = Path("data/interim/splits")
 
 TRAIN_DIR = OUTPUT_PATH / "train"
 VAL_DIR = OUTPUT_PATH / "validation"
