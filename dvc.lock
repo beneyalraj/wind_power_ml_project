@@ -220,3 +220,25 @@ stages:
       md5: 771df2af68ae06f5886746b9c5d36651.dir
       size: 103440
       nfiles: 3
+  feature_validation:
+    cmd: python src/validation/validate_features.py
+    deps:
+    - path: configs/feature_spec.yaml
+      hash: md5
+      md5: 13947bef276dd78ee460535b40b99d20
+      size: 248
+    - path: data/features
+      hash: md5
+      md5: 771df2af68ae06f5886746b9c5d36651.dir
+      size: 103440
+      nfiles: 3
+    - path: src/validation/validate_features.py
+      hash: md5
+      md5: bfa2b471f657244bb1e841916f7cc371
+      size: 20664
+    outs:
+    - path: data/validated_features
+      hash: md5
+      md5: f2d26815879f0ff7b06a9658264bb2f4.dir
+      size: 102126
+      nfiles: 3

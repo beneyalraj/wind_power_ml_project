@@ -65,3 +65,12 @@ stages:
       - src/features/build_features.py
     outs:
       - data/features
+
+  feature_validation:
+    cmd: python src/validation/validate_features.py
+    deps:
+      - data/features
+      - configs/feature_spec.yaml
+      - src/validation/validate_features.py
+    outs:
+      - data/validated_features
