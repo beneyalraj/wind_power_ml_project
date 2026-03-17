@@ -1,33 +1,30 @@
-# Logs & Metrics (generated)
-logs/*.log
-logs/*.json
-metrics/*.json
-
-# Virtual Environment
+# Python & Environments
 venv/
 env/
-
-# DVC cache
-.dvc/cache/
-
-# Python
 __pycache__/
 *.pyc
-
-# Data artifacts
-data/interim/
-data/raw/
-
-#notebooks
 .ipynb_checkpoints/
 
-.git
-data
-__pycache__
-
+# OS Files & Secrets
 .DS_Store
 .env
 
+# DVC System Files
+.dvc/config.local
+.dvc/tmp/
+.dvc/cache/
+
+# MLOps Generated Artifacts (Handled by DVC & MLflow)
+logs/
+metrics/*.json
 models/
 mlruns/
-reports/ 
+reports/
+
+# Data Folders (Raw & Interim)
+# Note: DVC automatically handles ignoring processed data via pipeline outputs
+data/interim/
+data/raw/
+data/features/
+data/validated_features/
+data/processed/
