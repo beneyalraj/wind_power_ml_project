@@ -74,3 +74,33 @@ stages:
       - src/validation/validate_features.py
     outs:
       - data/validated_features
+
+  build_dataset:
+    cmd: python src/dataset_builder/build_dataset.py
+    deps:
+      - src/dataset_builder/build_dataset.py
+      - data/validated_features
+      - configs/feature_spec.yaml
+    outs:
+      - data/processed/train/X
+      - data/processed/train/y
+      - data/processed/validation/X
+      - data/processed/validation/y
+      - data/processed/test/X
+      - data/processed/test/y
+    metrics:
+      - metrics/dataset_builder_summary.json:
+          cache: false
+
+  model_training:
+    cmd: python src/training/train_model.py
+    deps:
+      - src/training/train_model.py
+      - data/processed
+      - params.yaml
+      - configs/feature_spec.yaml
+    outs:
+      - models
+    metrics:
+      - metrics/training_metrics_latest.json:
+          cache: false

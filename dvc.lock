@@ -180,22 +180,22 @@ stages:
       nfiles: 10
     - path: src/dataset/split_dataset.py
       hash: md5
-      md5: b6937425a30f0d23818ad7ff5bb422d7
-      size: 1497
+      md5: 712acd3bc3deec3a5ce70deca507ebb8
+      size: 1866
     outs:
     - path: data/interim/splits/test
       hash: md5
-      md5: ebef02851513073a4cd0c56eae96456c.dir
-      size: 17157
-      nfiles: 1
+      md5: 06369240db0739f4e0255bd385ca28ec.dir
+      size: 34239
+      nfiles: 2
     - path: data/interim/splits/train
       hash: md5
-      md5: 949a06dccef54a1c9983f6e6be99bfcd.dir
-      size: 17099
-      nfiles: 1
+      md5: a7a3a4598f9c13cf18f03ccf0b3499ea.dir
+      size: 119922
+      nfiles: 7
     - path: data/interim/splits/validation
       hash: md5
-      md5: 03d4b44e464d0a570cac384586346140.dir
+      md5: 7ef98fd862d017edf38dc8e77d8607a9.dir
       size: 17059
       nfiles: 1
   feature_extraction:
@@ -203,35 +203,35 @@ stages:
     deps:
     - path: configs/feature_spec.yaml
       hash: md5
-      md5: 13947bef276dd78ee460535b40b99d20
-      size: 248
+      md5: f32d1ae9c599dbba9b0db2e857db6cab
+      size: 292
     - path: data/interim/splits
       hash: md5
-      md5: af58d9016adaefaee0172f2a104c5b60.dir
-      size: 51315
-      nfiles: 3
+      md5: 31d1704b0ae17ee716b541f9ab28efe1.dir
+      size: 171220
+      nfiles: 10
     - path: src/features/build_features.py
       hash: md5
-      md5: 86e75562895b6f5c080d246c0f746ae6
-      size: 4378
+      md5: 18136cd043475608f9d965b30e3b9866
+      size: 4717
     outs:
     - path: data/features
       hash: md5
-      md5: 771df2af68ae06f5886746b9c5d36651.dir
-      size: 103440
-      nfiles: 3
+      md5: 74eecf3e8f0bdf98bce67d2ef4496c08.dir
+      size: 451404
+      nfiles: 10
   feature_validation:
     cmd: python src/validation/validate_features.py
     deps:
     - path: configs/feature_spec.yaml
       hash: md5
-      md5: 13947bef276dd78ee460535b40b99d20
-      size: 248
+      md5: f32d1ae9c599dbba9b0db2e857db6cab
+      size: 292
     - path: data/features
       hash: md5
-      md5: 771df2af68ae06f5886746b9c5d36651.dir
-      size: 103440
-      nfiles: 3
+      md5: 74eecf3e8f0bdf98bce67d2ef4496c08.dir
+      size: 451404
+      nfiles: 10
     - path: src/validation/validate_features.py
       hash: md5
       md5: bfa2b471f657244bb1e841916f7cc371
@@ -239,6 +239,87 @@ stages:
     outs:
     - path: data/validated_features
       hash: md5
-      md5: f2d26815879f0ff7b06a9658264bb2f4.dir
-      size: 102126
+      md5: b408e6c1a4bb12e7f2b43bb7ef8b6be3.dir
+      size: 446944
+      nfiles: 10
+  build_dataset:
+    cmd: python src/dataset_builder/build_dataset.py
+    deps:
+    - path: configs/feature_spec.yaml
+      hash: md5
+      md5: f32d1ae9c599dbba9b0db2e857db6cab
+      size: 292
+    - path: data/validated_features
+      hash: md5
+      md5: b408e6c1a4bb12e7f2b43bb7ef8b6be3.dir
+      size: 446944
+      nfiles: 10
+    - path: src/dataset_builder/build_dataset.py
+      hash: md5
+      md5: c46b3c68e2bf4035f1e0d9d4128c9b02
+      size: 14107
+    outs:
+    - path: data/processed/test/X
+      hash: md5
+      md5: 945e714195f243f5186c188ac14f3b0c.dir
+      size: 49824
+      nfiles: 2
+    - path: data/processed/test/y
+      hash: md5
+      md5: 03c2f06827a17e35bf940cbf695520f4.dir
+      size: 6002
+      nfiles: 2
+    - path: data/processed/train/X
+      hash: md5
+      md5: 7eb51f16c770e00ce254bbc0b8935cf6.dir
+      size: 174365
+      nfiles: 7
+    - path: data/processed/train/y
+      hash: md5
+      md5: ab21ba2e9a92dbc8c051a19914313395.dir
+      size: 21023
+      nfiles: 7
+    - path: data/processed/validation/X
+      hash: md5
+      md5: 15a4dd25636ec77cd27e5f84fba3408f.dir
+      size: 24908
+      nfiles: 1
+    - path: data/processed/validation/y
+      hash: md5
+      md5: e5f71b42c748389d90e9e15d4a7b86cc.dir
+      size: 2939
+      nfiles: 1
+    - path: metrics/dataset_builder_summary.json
+      hash: md5
+      md5: 103580156a3b897e288ba3cddcb0428e
+      size: 1278
+  model_training:
+    cmd: python src/training/train_model.py
+    deps:
+    - path: configs/feature_spec.yaml
+      hash: md5
+      md5: f32d1ae9c599dbba9b0db2e857db6cab
+      size: 292
+    - path: data/processed
+      hash: md5
+      md5: 7b5c3a65bb20b6194f755721ac33f9e4.dir
+      size: 279061
+      nfiles: 20
+    - path: params.yaml
+      hash: md5
+      md5: ce42a68ae40525632e1f372f14f2046a
+      size: 2265
+    - path: src/training/train_model.py
+      hash: md5
+      md5: 7416918a5943b1e977be5cf95b3d7290
+      size: 18330
+    outs:
+    - path: metrics/training_metrics_latest.json
+      hash: md5
+      md5: 0c521ed6fe5a5449bdfc8231f242300d
+      size: 671
+    - path: models
+      hash: md5
+      md5: c5f82ba0e2b9ca4450e6990edb9a786b.dir
+      size: 271692
       nfiles: 3

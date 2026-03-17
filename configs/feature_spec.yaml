@@ -14,3 +14,5 @@ derived_features:
   - wind_direction_sin
   - wind_direction_cos
   - wind_speed_squared
+  - wind_speed_cubed
+  - wake_adjusted_wind

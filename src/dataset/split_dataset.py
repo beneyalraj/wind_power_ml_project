@@ -38,10 +38,14 @@ def split_layouts(layout_files):
 def copy_files(files, destination):
 
     for file in files:
-
-        dst = destination / file.name
-
+        # Get the parent folder name (e.g., 'layout_0') 
+        # to prevent overwriting files named 'part-00000.parquet'
+        parent_name = file.parent.name 
+        new_name = f"{parent_name}_{file.name}"
+        
+        dst = destination / new_name
         shutil.copy(file, dst)
+        print(f"  → Copied {file.name} as {new_name}")
 
 
 def main():
@@ -53,6 +57,8 @@ def main():
     print(f"Total layouts found: {len(layout_files)}")
 
     train_files, val_files, test_files = split_layouts(layout_files)
+
+    print(f"Layouts: Train={len(train_files)}, Val={len(val_files)}, Test={len(test_files)}")
 
     print("Copying train layouts...")
     copy_files(train_files, TRAIN_DIR)

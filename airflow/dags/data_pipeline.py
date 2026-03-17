@@ -33,5 +33,10 @@ with DAG(
         bash_command="cd /opt/project && dvc repro validate_processed"
     )
 
+    train_model = BashOperator(
+    task_id="model_training",
+    bash_command="cd /opt/project && dvc repro train_model"
+    )
+
     # Set the execution pipeline order
-    ingest_data >> validate_raw_data >> extract_features >> validate_processed_data
+    ingest_data >> validate_raw_data >> extract_features >> validate_processed_data >> train_model
