@@ -1,19 +1,39 @@
-# Data & Math
+# =============================================================================
+# requirements.txt — Production dependencies (pinned for reproducibility)
+
+# INSTALL:  pip install -r requirements.txt
+# UPDATE:   Change version → pip install -r requirements.txt → pytest tests/ -v
+# =============================================================================
+
+# --- API Framework ---
+fastapi==0.109.0
+uvicorn==0.27.0                  # ASGI server
+starlette==0.35.0              # FastAPI's underlying framework
+
+# --- ML & Data ---
 numpy==1.26.4
 pandas==2.1.4
-h5py==3.10.0
-pyarrow==14.0.1
+scikit-learn==1.7.2              # Model training and artifact serialization
+joblib==1.5.3                    # Model loading (bundled with sklearn, pinned explicitly)
+scipy==1.15.3                    # Statistical utilities used by sklearn
+pyarrow==15.0.2                  # Parquet file support
+h5py==3.10.0                     # HDF5 dataset support
+pandera==0.29.0                  # DataFrame schema validation
 
-# AWS & MLOps
-boto3==1.34.34
-dvc==3.41.0
-dagshub==0.3.24
-mlflow==2.10.0
-pathspec==0.11.2
+# --- Visualisation ---
+matplotlib==3.10.8
+seaborn==0.13.2
 
-# Engineering
-fastapi==0.109.0
-uvicorn==0.27.0
-pytest==7.4.4
-python-dotenv==1.0.1
-pyyaml==6.0.1
+# --- MLOps & Experiment Tracking ---
+mlflow==2.10.0                   # Experiment tracking and model registry
+dvc==3.41.0                      # Data version control
+dagshub==0.6.8                   # Remote storage and MLflow integration
+boto3==1.34.34                   # AWS SDK — S3 remote storage for DVC/MLflow
+botocore==1.34.162               # Core AWS SDK (pinned to match boto3)
+
+# --- Config & Utilities ---
+pydantic==2.12.5                 # Data validation (required by FastAPI)
+pydantic-settings==2.13.1        # .env file loading via BaseSettings
+python-dotenv==1.0.1             # Loads .env into os.environ
+pyyaml==6.0.1                    # Feature spec and config loading
+pathspec==0.11.2                 # Path pattern matching (used by DVC)

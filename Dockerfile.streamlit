@@ -1,0 +1,85 @@
+# =============================================================================
+# Dockerfile.streamlit — Streamlit Dashboard Container
+#
+# BUILD:
+#   docker build -f Dockerfile.streamlit -t wind-streamlit .
+#
+# RUN (standalone):
+#   docker run -p 8501:8501 -e API_URL=http://localhost:8000 wind-streamlit
+#
+# PREFERRED: use docker-compose.yml which wires API + Streamlit together
+# and sets API_URL=http://fastapi:8000 automatically via Docker network
+# =============================================================================
+
+# ── Base image ────────────────────────────────────────────────────────────────
+FROM python:3.10-slim
+
+# ── Environment flags ─────────────────────────────────────────────────────────
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# ── Working directory ─────────────────────────────────────────────────────────
+WORKDIR /app
+
+# ── Install ONLY what the UI needs ───────────────────────────────────────────
+# The Streamlit container is a pure UI layer — it calls FastAPI over HTTP.
+# It does NOT load models, run inference, or touch ML libraries.
+#
+# DO NOT copy requirements.txt here — it contains fastapi, scikit-learn,
+# mlflow, boto3 and other backend packages that have no place in a UI image.
+# Installing them bloats the image by ~1GB and widens the attack surface.
+#
+# These 4 packages are everything this container needs:
+#   streamlit  — the UI framework
+#   requests   — HTTP calls to FastAPI
+#   pandas     — DataFrame for the power curve chart
+#   numpy      — arange() for wind speed range generation
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+        streamlit==1.32.0 \
+        requests==2.31.0 \
+        pandas==2.1.4 \
+        numpy==1.26.4
+
+# ── Streamlit config ──────────────────────────────────────────────────────────
+# headless=true  : no browser launch attempt (would fail in a container)
+# enableCORS=false : not needed inside Docker network
+# port=8501      : explicit, matches EXPOSE below
+RUN mkdir -p /app/.streamlit && \
+    printf '[server]\nheadless = true\nenableCORS = false\nport = 8501\n' \
+    > /app/.streamlit/config.toml
+
+# ── Copy source code ──────────────────────────────────────────────────────────
+# Only the serving module — no training, feature, or data pipeline code
+COPY src/serving/streamlit_app.py ./src/serving/streamlit_app.py
+
+# ── Non-root user + correct ownership ────────────────────────────────────────
+# Create appuser THEN transfer ownership of /app BEFORE switching user.
+#
+# WHY ownership matters:
+#   Files copied above were created as root. Streamlit writes cache and
+#   session files to /app at runtime. If appuser doesn't own /app,
+#   those writes fail with "Permission Denied" and the app crashes.
+#
+# chown -R appuser:appuser /app transfers ownership of everything in /app
+# to appuser before we switch — so runtime writes succeed.
+RUN adduser --disabled-password --no-create-home appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# ── Expose port ───────────────────────────────────────────────────────────────
+EXPOSE 8501
+
+# ── Health check ──────────────────────────────────────────────────────────────
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c \
+    "import requests; requests.get('http://localhost:8501/_stcore/health', timeout=5)" \
+    || exit 1
+
+# ── Start command ─────────────────────────────────────────────────────────────
+# --server.address 0.0.0.0 : listen on all interfaces (required in Docker)
+# --server.port 8501        : explicit, matches EXPOSE above
+# API_URL injected at runtime via docker-compose environment variable
+CMD ["streamlit", "run", "src/serving/streamlit_app.py", \
+     "--server.address", "0.0.0.0", \
+     "--server.port", "8501"]

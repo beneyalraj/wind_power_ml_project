@@ -1,0 +1,61 @@
+# =============================================================================
+# .dockerignore — Excludes files from Docker build context
+#
+# Without this, Docker sends your entire project directory to the daemon
+# including data/, venv/, .git/ — gigabytes of files that slow every build.
+# =============================================================================
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Data — large, managed by DVC not Docker
+data/
+
+# Git
+.git/
+.gitignore
+
+# Environment — secrets must never go into an image
+.env
+
+# Logs — runtime outputs, not source code
+logs/
+
+# Dev and notebook files
+*.ipynb
+.ipynb_checkpoints/
+
+# DVC cache
+.dvc/cache/
+
+# Reports and metrics — generated at runtime
+reports/
+metrics/
+
+# Docker files themselves (no need to copy into image)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated (Mac)
+.DS_Store
+
+# CI/CD — Docker doesn't need GitHub Actions workflows
+.github/
+
+# MLflow local tracking — can grow to several GB of experiment artifacts
+mlruns/
+
+# Test coverage artifacts
+.coverage
+htmlcov/
+.ruff_cache/

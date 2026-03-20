@@ -1,0 +1,91 @@
+# =============================================================================
+# docker-compose.serve.yml — Wind Power Prediction Stack (Secured DMZ)
+#
+# ARCHITECTURE:
+#   Internet -> Nginx (Port 80) -> Internal Docker Network
+#                                    ├─> /api/* -> FastAPI (Port 8000)
+#                                    └─> /* -> Streamlit (Port 8501)
+# =============================================================================
+
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Nginx — Reverse Proxy & Public Front Door
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: wind-nginx
+    ports:
+      - "80:80"                     # ONLY port exposed to the internet
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      fastapi:
+        condition: service_healthy  # Wait for backend to be ready
+      streamlit:
+        condition: service_started  # Wait for UI container to boot
+    restart: unless-stopped
+    networks:
+      - wind-network
+
+  # ---------------------------------------------------------------------------
+  # FastAPI — Model Serving API (Hidden)
+  # ---------------------------------------------------------------------------
+  fastapi:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.api
+    container_name: wind-api
+    expose:
+      - "8000"                      # Internal network access only
+    env_file:
+      - .env
+    volumes:
+      - ./models:/app/models
+      - ./configs:/app/configs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - wind-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ---------------------------------------------------------------------------
+  # Streamlit — Interactive Dashboard (Hidden)
+  # ---------------------------------------------------------------------------
+  streamlit:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.streamlit
+    container_name: wind-streamlit
+    expose:
+      - "8501"                      # Internal network access only
+    environment:
+      - API_URL=http://fastapi:8000
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - wind-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+# -----------------------------------------------------------------------------
+# Network & Volumes
+# -----------------------------------------------------------------------------
+networks:
+  wind-network:
+    driver: bridge
+
+volumes:
+  logs:

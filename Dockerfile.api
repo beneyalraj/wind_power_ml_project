@@ -1,0 +1,83 @@
+# =============================================================================
+# Dockerfile.api — FastAPI Model Serving Container
+#
+# BUILD:
+#   docker build -f Dockerfile.api -t wind-api .
+#
+# RUN (standalone):
+#   docker run -p 8000:8000 --env-file .env wind-api
+#
+# PREFERRED: use docker-compose.yml which wires API + Streamlit together
+# =============================================================================
+
+# ── Base image ────────────────────────────────────────────────────────────────
+# slim = no build tools, compilers, or test frameworks — smaller and safer
+FROM python:3.10-slim
+
+# ── Environment flags ─────────────────────────────────────────────────────────
+# PYTHONDONTWRITEBYTECODE: no .pyc files — keeps image clean
+# PYTHONUNBUFFERED: stdout/stderr go straight to logs without buffering
+#                   critical for seeing logs in real time on EC2
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# ── Working directory ─────────────────────────────────────────────────────────
+WORKDIR /app
+
+# ── Install dependencies ──────────────────────────────────────────────────────
+# Copy requirements BEFORE source code so Docker caches this layer.
+# Result: rebuilds after code changes skip the pip install step entirely.
+# Only invalidated when requirements.txt changes.
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ── Copy source code ──────────────────────────────────────────────────────────
+COPY src/ ./src/
+COPY models/ ./models/
+COPY configs/ ./configs/
+
+# ── Non-root user + correct ownership ────────────────────────────────────────
+# Create appuser THEN transfer ownership of /app BEFORE switching user.
+#
+# WHY ownership matters:
+#   Files copied above were created as root. At runtime the API may write
+#   logs (feature_engineering.log), download model artifacts from MLflow,
+#   or write temporary cache files. If appuser doesn't own /app, all of
+#   these fail with "Permission Denied" and crash the container.
+#
+# chown -R transfers ownership of everything in /app to appuser first.
+RUN adduser --disabled-password --no-create-home appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+# ── Expose port ───────────────────────────────────────────────────────────────
+EXPOSE 8000
+
+# ── Health check ──────────────────────────────────────────────────────────────
+# Uses urllib.request (Python stdlib) instead of requests (third-party).
+#
+# WHY urllib and not requests:
+#   requests is a third-party library — if it is ever missing from
+#   requirements.txt, Docker marks the container "Unhealthy" and kills it
+#   even when the API is working perfectly. urllib.request is built into
+#   Python's core and is guaranteed to be available in every Python image.
+#
+# --start-period=60s: gives the model time to download from DagHub registry
+#   before health checks start — without this, the container is killed
+#   during the model download and never starts successfully.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD python -c \
+    "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)" \
+    || exit 1
+
+# ── Start command ─────────────────────────────────────────────────────────────
+# --host 0.0.0.0  : listen on all interfaces (required inside Docker)
+# --port 8000     : explicit, matches EXPOSE above
+# --workers 1     : single worker — safe for ML models loaded into memory
+#                   multiple workers = multiple model copies = OOM on t2.micro
+# no --reload     : reload is for development only, never production
+CMD ["uvicorn", "src.serving.app:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8000", \
+     "--workers", "1"]

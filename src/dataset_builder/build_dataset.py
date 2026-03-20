@@ -90,6 +90,7 @@ def build_dataset(df, spec, optimize_dtypes=True):
     
     # Extract target (y)
     y = df[[target]].copy()
+    y[target] = y[target] / 1000
     
     # Optional: Optimize data types for memory efficiency
     if optimize_dtypes:
@@ -331,48 +332,9 @@ def main():
     
     logger.info(f"\n✓ Summary metrics saved: {summary_metrics_file}")
     
-    # Output structure documentation
-    logger.info(f"\n{'='*70}")
-    logger.info("OUTPUT STRUCTURE")
-    logger.info(f"{'='*70}")
-    logger.info("\nGenerated directory structure:")
-    logger.info("  data/processed/")
-    logger.info("    ├── train/")
-    logger.info("    │   ├── X/  (feature files)")
-    logger.info("    │   │   ├── layout_000_X.parquet")
-    logger.info("    │   │   ├── layout_001_X.parquet")
-    logger.info("    │   │   └── ...")
-    logger.info("    │   └── y/  (target files)")
-    logger.info("    │       ├── layout_000_y.parquet")
-    logger.info("    │       ├── layout_001_y.parquet")
-    logger.info("    │       └── ...")
-    logger.info("    ├── validation/")
-    logger.info("    │   ├── X/")
-    logger.info("    │   └── y/")
-    logger.info("    └── test/")
-    logger.info("        ├── X/")
-    logger.info("        └── y/")
-    
     logger.info(f"\n{'='*70}")
     logger.info("✅ DATASET BUILDER COMPLETED SUCCESSFULLY")
     logger.info(f"{'='*70}")
-    
-    # Usage instructions
-    logger.info("\nNext steps:")
-    logger.info("  1. Train model using: data/processed/train/X/ and data/processed/train/y/")
-    logger.info("  2. Validate using: data/processed/validation/X/ and data/processed/validation/y/")
-    logger.info("  3. Test using: data/processed/test/X/ and data/processed/test/y/")
-    
-    logger.info("\nExample loading code:")
-    logger.info("  import pandas as pd")
-    logger.info("  from pathlib import Path")
-    logger.info("  ")
-    logger.info("  # Load all training data")
-    logger.info("  X_files = Path('data/processed/train/X').glob('*.parquet')")
-    logger.info("  X_train = pd.concat([pd.read_parquet(f) for f in X_files])")
-    logger.info("  ")
-    logger.info("  y_files = Path('data/processed/train/y').glob('*.parquet')")
-    logger.info("  y_train = pd.concat([pd.read_parquet(f) for f in y_files])")
 
 if __name__ == "__main__":
     try:

@@ -1,0 +1,12 @@
+# =============================================================================
+# requirements-dev.txt — Development and testing dependencies
+#
+# INSTALL:  pip install -r requirements.txt -r requirements-dev.txt
+# =============================================================================
+
+-r requirements.txt              # Dev includes all prod deps
+
+# --- Testing ---
+pytest==7.4.4
+httpx==0.24.1                    # Pinned: 0.25+ breaks TestClient with starlette 0.27
+anyio==4.12.1                    # Async test support (pytest-anyio dependency)

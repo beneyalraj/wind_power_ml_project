@@ -1,0 +1,39 @@
+# =============================================================================
+# docker-compose.prod.yml — Production overrides for EC2
+# =============================================================================
+
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Nginx overrides
+  # ---------------------------------------------------------------------------
+  nginx:
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"             # Keep Nginx access logs from crashing the EC2 disk
+        max-file: "3"
+
+  # ---------------------------------------------------------------------------
+  # FastAPI overrides
+  # ---------------------------------------------------------------------------
+  fastapi:
+    restart: always                 # always restart — survives EC2 reboots
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"             # rotate after 10MB
+        max-file: "3"               # keep 3 files max = 30MB total ceiling
+
+  # ---------------------------------------------------------------------------
+  # Streamlit overrides
+  # ---------------------------------------------------------------------------
+  streamlit:
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

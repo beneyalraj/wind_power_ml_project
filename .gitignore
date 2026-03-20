@@ -4,6 +4,7 @@ env/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.pytest_cache/
 
 # OS Files & Secrets
 .DS_Store
