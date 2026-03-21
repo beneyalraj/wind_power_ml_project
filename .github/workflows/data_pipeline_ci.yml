@@ -2,9 +2,16 @@ name: Data Pipeline CI
 
 on:
   push:
-    branches: [ "main" ] # Optional: restrict pushes to specific branches
-  workflow_dispatch:     # THIS is the magic line that adds the manual button
-
+    branches: [ "main" ]
+    paths:
+      - 'src/data/**'
+      - 'src/dataset_builder/**'
+      - 'src/training/**'
+      - 'dvc.yaml'
+      - 'params.yaml'
+      - 'airflow/**'
+      - 'requirements.txt' 
+  workflow_dispatch:    
 jobs:
   test-pipeline:
     runs-on: ubuntu-latest
