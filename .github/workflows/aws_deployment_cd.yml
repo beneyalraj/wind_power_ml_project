@@ -1,8 +1,8 @@
 name: Deploy to EC2
 
 on:
-  workflow_dispatch:        
-                            
+  workflow_dispatch:        # Manual trigger only — deploy when YOU decide
+                            # GitHub Actions tab → Deploy to EC2 → Run workflow
 
 jobs:
   deploy:
@@ -19,14 +19,22 @@ jobs:
           script: |
             cd ~/wind_power_ml_project
 
-            # Force sync with GitHub
+            # Force sync with GitHub — discards any local changes
             git fetch origin main
             git reset --hard origin/main
 
-            # Rebuild and restart
+            # Bring down cleanly first — prevents orphaned containers
+            # Without this, Docker leaves broken containers with hash names
+            # when image names change between builds
             docker-compose -f docker-compose.serve.yml \
                            -f docker-compose.serve.prod.yml \
-                           up -d --build
+                           down
 
-            # Clean up old images
+            # Rebuild and restart fresh
+            # --remove-orphans: cleans up containers no longer in compose file
+            docker-compose -f docker-compose.serve.yml \
+                           -f docker-compose.serve.prod.yml \
+                           up -d --build --remove-orphans
+
+            # Remove old dangling images to keep 20GB disk usage under control
             docker image prune -af
