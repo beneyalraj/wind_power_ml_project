@@ -1,0 +1,32 @@
+name: Deploy to EC2
+
+on:
+  workflow_dispatch:        
+                            
+
+jobs:
+  deploy:
+    name: Deploy App to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Execute remote SSH commands to deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/wind_power_ml_project
+
+            # Force sync with GitHub
+            git fetch origin main
+            git reset --hard origin/main
+
+            # Rebuild and restart
+            docker-compose -f docker-compose.serve.yml \
+                           -f docker-compose.serve.prod.yml \
+                           up -d --build
+
+            # Clean up old images
+            docker image prune -af
