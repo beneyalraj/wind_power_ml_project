@@ -19,6 +19,8 @@ __pycache__/
 logs/
 metrics/*.json
 models/
+!models/features.json
+!models/metadata.json
 mlruns/
 reports/
 
