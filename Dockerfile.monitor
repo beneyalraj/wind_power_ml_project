@@ -22,7 +22,7 @@ RUN apt-get update && \
 
 # ── Install Python Dependencies ───────────────────────────────────────────────
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir "evidently<0.7.0" pandas==2.1.4 numpy==1.26.4
+RUN pip install --no-cache-dir evidently==0.6.7 pandas==2.1.4 numpy==1.26.4
 
 # ── Copy and Run ──────────────────────────────────────────────────────────────
 COPY --chown=appuser:appuser monitoring/ ./monitoring/
