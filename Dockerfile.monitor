@@ -1,21 +1,33 @@
+# ── Base image ────────────────────────────────────────────────────────────────
 FROM python:3.10-slim
 
+# ── Environment flags ─────────────────────────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN adduser --disabled-password --no-create-home appuser
+# ── Non-root user setup ───────────────────────────────────────────────────────
+RUN useradd --no-create-home appuser
 
+# ── Working directory & Mount Points ──────────────────────────────────────────
 WORKDIR /app
 
 RUN mkdir -p logs reports && \
     chown appuser:appuser logs reports
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir \
-        evidently>=0.4.0 \
-        pandas==2.1.4 \
-        numpy==1.26.4
+# ── Install System Dependencies (NEW) ─────────────────────────────────────────
+# scikit-learn (used by evidently) requires libgomp1 to run its math operations
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
 
+# ── Install Python Dependencies ───────────────────────────────────────────────
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir \
+    evidently>=0.4.0 \
+    pandas==2.1.4 \
+    numpy==1.26.4
+
+# ── Copy and Run ──────────────────────────────────────────────────────────────
 COPY --chown=appuser:appuser monitoring/ ./monitoring/
 
 USER appuser
