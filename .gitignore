@@ -9,11 +9,16 @@ __pycache__/
 # OS Files & Secrets
 .DS_Store
 .env
+.env.*
+!.env.example
 
 # DVC System Files
 .dvc/config.local
 .dvc/tmp/
 .dvc/cache/
+data/**
+!data/
+!data/**/.gitkeep
 
 # MLOps Generated Artifacts (Handled by DVC & MLflow)
 logs/
