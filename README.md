@@ -6,14 +6,46 @@ A production-grade ML system for predicting wind farm power output. Built with a
 [![Model](https://img.shields.io/badge/model-GradientBoosting-blue)](https://dagshub.com/beneyalraj/wind_power_system)
 [![Registry](https://img.shields.io/badge/registry-DagHub%20MLflow-orange)](https://dagshub.com/beneyalraj/wind_power_system)
 [![FastAPI](https://img.shields.io/badge/API-FastAPI-009688)](https://github.com/beneyalraj/wind_power_ml_project)
+[![Docker](https://img.shields.io/badge/containers-Docker-2496ED)](https://github.com/beneyalraj/wind_power_ml_project)
+[![AWS EC2](https://img.shields.io/badge/deployed-AWS%20EC2-FF9900)](http://13.219.46.116)
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088FF)](https://github.com/beneyalraj/wind_power_ml_project/actions)
 
 ---
 
-## What This System Does
+## 🚀 Live Demo
 
-Given wind conditions at a farm — speed, direction, turbulence, and turbine count — the system predicts total power output in kilowatts. A GradientBoosting model (R² = 0.97 on test) is served via a FastAPI backend with a Streamlit dashboard for interactive exploration.
+| Service | URL |
+|---|---|
+| Streamlit Dashboard | http://13.219.46.116 |
+| FastAPI Swagger UI | http://13.219.46.116/api/docs |
+| Health Check | http://13.219.46.116/api/health |
 
-The model is trained through a fully automated DVC pipeline triggered by GitHub Actions, validated against enterprise quality gates, and registered to a DagHub MLflow registry. The serving layer loads the model directly from the registry at startup — no manual file copying between environments.
+<here goes your streamlit dashboard image>
+
+---
+
+## Business Context
+
+Accurate wind power forecasting is critical for modern energy grid operations. Grid operators need to balance supply and demand in real time — when wind output is unpredictable, they rely on fossil-fuel backup generators to compensate, increasing costs and carbon emissions.
+
+This system predicts wind farm power output from atmospheric conditions, enabling operators to:
+- **Pre-schedule generation** — commit accurate power volumes to energy markets hours in advance
+- **Reduce backup reliance** — minimise expensive and polluting peaker plant activation
+- **Optimise turbine layouts** — simulate output across different farm configurations before construction
+
+---
+
+## Tech Stack
+
+| Category | Technologies |
+|---|---|
+| **ML & Data** | scikit-learn, pandas, numpy, scipy, Pandera |
+| **MLOps** | DVC, MLflow, DagHub, Evidently AI |
+| **Serving** | FastAPI, Pydantic v2, Uvicorn, Streamlit |
+| **Infrastructure** | Docker, Nginx, AWS EC2, GitHub Actions |
+| **Orchestration** | Apache Airflow |
+| **Storage** | AWS S3, DagHub remote |
+| **Language** | Python 3.10 |
 
 ---
 
@@ -23,7 +55,10 @@ The model is trained through a fully automated DVC pipeline triggered by GitHub 
 ┌─────────────────────────────────────────────────────────────────┐
 │                        TRAINING PIPELINE                        │
 │                                                                 │
-│   AWS S3 (raw data)                                             │
+│   AWS S3 (raw data — NREL Wind AI Bench dataset)                │
+│       │                                                         │
+│       ▼                                                         │
+│   Apache Airflow (local orchestration)                          │
 │       │                                                         │
 │       ▼                                                         │
 │   DVC Pipeline (GitHub Actions triggers on push)                │
@@ -57,32 +92,47 @@ The model is trained through a fully automated DVC pipeline triggered by GitHub 
 ┌─────────────────────────────────────────────────────────────────┐
 │                        SERVING LAYER                            │
 │                                                                 │
-│   Docker Compose                                                │
-│   ┌─────────────────────┐   ┌─────────────────────────────┐    │
-│   │  FastAPI  :8000     │   │  Streamlit  :8501           │    │
-│   │                     │   │                             │    │
-│   │  POST /predict      │◄──│  Input sliders              │    │
-│   │  POST /predict_batch│   │  Power curve chart          │    │
-│   │  GET  /health       │   │  System information         │    │
-│   │                     │   │                             │    │
-│   │  • Pydantic v2      │   │  API_URL=http://fastapi:8000│    │
-│   │  • Request tracing  │   └─────────────────────────────┘    │
-│   │  • Model versioning │                                       │
-│   │  • Domain clipping  │                                       │
-│   └─────────────────────┘                                       │
-│            │                                                    │
-│            ▼                                                    │
-│   Evidently AI — prediction + data drift monitoring            │
+│   Docker Compose (AWS EC2 t3.micro)                             │
+│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
+│   │    Nginx     │  │    FastAPI      │  │   Streamlit      │  │
+│   │   :80        │  │   :8000         │  │   :8501          │  │
+│   │              │  │                 │  │                  │  │
+│   │ /api/* ────► │  │ POST /predict   │◄─│ Input sliders    │  │
+│   │ /* ───────►  │  │ POST /predict   │  │ Power curve      │  │
+│   │              │  │   _batch        │  │ System info      │  │
+│   │ Reverse proxy│  │ GET  /health    │  │                  │  │
+│   │ Log rotation │  │ Pydantic v2     │  │ API_URL=         │  │
+│   │ Single port  │  │ Request tracing │  │ http://fastapi   │  │
+│   └──────────────┘  │ Model versioning│  │ :8000            │  │
+│                     └─────────────────┘  └──────────────────┘  │
+│                              │                                  │
+│                              ▼                                  │
+│              Evidently AI — drift monitoring                    │
 └─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-                        AWS EC2 t2.micro
-                        (Docker host — free tier)
 ```
 
 ---
 
+## Dataset
+
+This project uses the **NREL Wind AI Bench** dataset, a publicly available benchmark for wind energy machine learning research.
+
+| | |
+|---|---|
+| **Source** | [NREL Wind AI Bench — AWS Open Data Registry](https://registry.opendata.aws/nrel-pds-windai) |
+| **License** | Creative Commons Attribution 4.0 United States |
+| **Managed by** | National Renewable Energy Laboratory (NREL) |
+| **Contact** | Ryan King — ryan.king@nrel.gov |
+| **Documentation** | https://github.com/NREL/windAI_bench |
+
+**Citation:**
+> Wind AI Bench was accessed on 2025 from https://registry.opendata.aws/nrel-pds-windai
+
+---
+
 ## Model Performance
+
+<here goes your mlflow experiments image>
 
 | Metric | Value | Gate |
 |---|---|---|
@@ -98,6 +148,24 @@ Models are only registered to production if they pass **both** gate thresholds. 
 
 ---
 
+## Engineered Features
+
+The model uses 4 raw inputs plus 5 physics-informed derived features:
+
+| Feature | Type | Description |
+|---|---|---|
+| `wind_speed` | Raw | Wind speed at hub height (m/s) |
+| `wind_direction` | Raw | Meteorological direction (°) |
+| `turbulence_intensity` | Raw | σ(wind) / mean(wind) |
+| `num_turbines` | Raw | Active turbines in farm |
+| `wind_direction_sin` | Derived | sin(direction) — cyclical encoding |
+| `wind_direction_cos` | Derived | cos(direction) — cyclical encoding |
+| `wind_speed_squared` | Derived | v² — aerodynamic drag proxy |
+| `wind_speed_cubed` | Derived | v³ — power law (P ∝ v³) |
+| `wake_adjusted_wind` | Derived | v × (1 − TI) — turbulence wake proxy |
+
+---
+
 ## Project Structure
 
 ```
@@ -106,11 +174,9 @@ wind_power_system/
 ├── src/
 │   ├── core/
 │   │   └── config_manager.py          # centralised config loading
-│   │
 │   ├── ingestion/
 │   │   ├── load_data.py               # downloads HDF5 from AWS S3
 │   │   └── inspect_h5.py              # HDF5 structure inspection utility
-│   │
 │   ├── data/
 │   │   ├── extract/
 │   │   │   ├── extract_to_parquet.py  # HDF5 → partitioned Parquet
@@ -119,19 +185,14 @@ wind_power_system/
 │   │   └── validate/
 │   │       ├── validate_raw.py        # raw data schema + quality checks
 │   │       └── validate_processed.py  # processed data validation
-│   │
 │   ├── dataset/
 │   │   └── split_dataset.py           # train / validation / test split
-│   │
 │   ├── dataset_builder/
 │   │   └── build_dataset.py           # X/y separation, W → kW conversion
-│   │
 │   ├── features/
 │   │   └── build_features.py          # physics-informed feature engineering
-│   │
 │   ├── validation/
 │   │   └── validate_features.py       # feature schema validation
-│   │
 │   ├── training/
 │   │   └── train_model.py             # multi-model training, gate check,
 │   │                                  # MLflow registration
@@ -155,33 +216,31 @@ wind_power_system/
 │   ├── features.json                  # ordered feature names
 │   └── metadata.json                  # model version metadata
 │
+├── airflow/
+│   ├── docker-compose.yml             # Airflow stack (local orchestration)
+│   ├── Dockerfile.airflow             # Airflow container
+│   └── dags/                          # pipeline DAG definitions
+│
+├── nginx/
+│   └── nginx.conf                     # reverse proxy configuration
+│
+├── .github/workflows/
+│   ├── serve-ci.yml                   # CI — runs 38 tests on every push
+│   └── deploy.yml                     # CD — manual deploy to EC2
+│
 ├── dvc.yaml                           # 9-stage DVC pipeline definition
 ├── dvc.lock                           # pipeline state lock
 ├── params.yaml                        # training hyperparameters
 ├── pytest.ini                         # test discovery config
 ├── requirements.txt                   # pinned production dependencies
 ├── requirements-dev.txt               # pinned dev/test dependencies
-├── .env.example                       # config template (copy to .env)
+├── Dockerfile.api                     # FastAPI container
+├── Dockerfile.streamlit               # Streamlit container
+├── docker-compose.serve.yml           # serving stack definition
+├── docker-compose.serve.prod.yml      # production overrides
+├── .env.example                       # config template
 └── README.md
 ```
-
----
-
-## Engineered Features
-
-The model uses 4 raw inputs plus 5 physics-informed derived features:
-
-| Feature | Type | Description |
-|---|---|---|
-| `wind_speed` | Raw | Wind speed at hub height (m/s) |
-| `wind_direction` | Raw | Meteorological direction (°) |
-| `turbulence_intensity` | Raw | σ(wind) / mean(wind) |
-| `num_turbines` | Raw | Active turbines in farm |
-| `wind_direction_sin` | Derived | sin(direction) — cyclical encoding |
-| `wind_direction_cos` | Derived | cos(direction) — cyclical encoding |
-| `wind_speed_squared` | Derived | v² — aerodynamic drag proxy |
-| `wind_speed_cubed` | Derived | v³ — power law (P ∝ v³) |
-| `wake_adjusted_wind` | Derived | v × (1 − TI) — turbulence wake proxy |
 
 ---
 
@@ -190,6 +249,7 @@ The model uses 4 raw inputs plus 5 physics-informed derived features:
 ### Prerequisites
 - Python 3.10+
 - Git
+- Docker Desktop
 
 ### 1. Clone and install
 
@@ -198,7 +258,7 @@ git clone https://github.com/beneyalraj/wind_power_ml_project.git
 cd wind_power_ml_project
 
 python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
+source venv/bin/activate
 
 pip install -r requirements.txt -r requirements-dev.txt
 ```
@@ -207,24 +267,26 @@ pip install -r requirements.txt -r requirements-dev.txt
 
 ```bash
 cp .env.example .env
-# .env is pre-configured for local mode (USE_MLFLOW_REGISTRY=false)
+# Pre-configured for local mode (USE_MLFLOW_REGISTRY=false)
 # No credentials needed to run locally
 ```
 
-### 3. Run the API
+### 3. Run with Docker (recommended)
 
 ```bash
-uvicorn src.serving.app:app --reload
-# API running at http://localhost:8000
-# Swagger docs at http://localhost:8000/docs
+docker compose -f docker-compose.serve.yml up --build
+# Dashboard:  http://localhost
+# API docs:   http://localhost/api/docs
 ```
 
-### 4. Run the dashboard
+### 4. Run without Docker
 
 ```bash
-# In a second terminal
+# Terminal 1
+uvicorn src.serving.app:app --reload
+
+# Terminal 2
 streamlit run src/serving/streamlit_app.py
-# Dashboard at http://localhost:8501
 ```
 
 ### 5. Run tests
@@ -238,7 +300,7 @@ pytest tests/ -v
 
 ## Production Mode — Load Model from Registry
 
-To load the model directly from DagHub MLflow registry instead of the local file, update `.env`:
+Update `.env` to load directly from DagHub MLflow registry:
 
 ```bash
 USE_MLFLOW_REGISTRY=true
@@ -247,23 +309,25 @@ MLFLOW_TRACKING_USERNAME=your_username
 MLFLOW_TRACKING_PASSWORD=your_dagshub_token
 ```
 
-Restart the API — it will download and load `WindPowerPredictor@champion` from the registry at startup. No code changes required between local and production modes.
+Restart the API — it downloads and loads `WindPowerPredictor@champion` at startup. No code changes required between local and production modes.
 
 ---
 
 ## API Reference
 
+<here goes your swagger UI image>
+
 | Endpoint | Method | Description |
 |---|---|---|
-| `/health` | GET | Liveness check — returns model loaded status and version |
-| `/predict` | POST | Single record inference — returns kW with request trace ID |
-| `/predict_batch` | POST | Batch inference — up to 500 records, vectorised |
-| `/docs` | GET | Interactive Swagger UI |
+| `GET  /api/health` | GET | Liveness check — model loaded status and version |
+| `POST /api/predict` | POST | Single record inference — returns kW with trace ID |
+| `POST /api/predict_batch` | POST | Batch inference — up to 500 records, vectorised |
+| `GET  /api/docs` | GET | Interactive Swagger UI |
 
 ### Example Request
 
 ```bash
-curl -X POST http://localhost:8000/predict \
+curl -X POST http://13.219.46.116/api/predict \
   -H "Content-Type: application/json" \
   -d '{
     "wind_speed": 12.5,
@@ -280,7 +344,7 @@ curl -X POST http://localhost:8000/predict \
   "status": "success",
   "prediction_kw": 172614.3,
   "model_version": "WindPowerPredictor@champion",
-  "request_id": "e15a5021-afaf-49c1-80e9-17355fe2b147"
+  "request_id": "b07e1e14-e80f-4114-8341-026329c6d3e2"
 }
 ```
 
@@ -288,9 +352,39 @@ Every response includes a `request_id` (UUID4) attached via middleware and echoe
 
 ---
 
-## DVC Pipeline
+## CI/CD Pipeline
 
-The training pipeline is defined in `dvc.yaml` with 9 stages:
+### Continuous Integration
+Runs automatically on every push to `main` when serving code or tests change.
+
+```
+push to main
+    ↓
+pytest tests/ -v (38 tests)
+    ↓
+✅ All pass → merge allowed
+❌ Any fail → merge blocked
+```
+
+### Continuous Deployment
+Manual trigger — deploy only when you decide it's ready.
+
+```
+GitHub Actions → Deploy to EC2 → Run workflow
+    ↓
+SSH into EC2
+    ↓
+git reset --hard origin/main
+    ↓
+docker-compose down
+docker-compose up -d --build
+    ↓
+docker image prune -af
+```
+
+---
+
+## DVC Pipeline
 
 ```
 data_ingestion → validate_raw → extract_scenario_dataset
@@ -298,26 +392,17 @@ data_ingestion → validate_raw → extract_scenario_dataset
     → feature_validation → build_dataset → model_training
 ```
 
-Run the full pipeline:
 ```bash
-dvc repro
-```
-
-Run from a specific stage (DVC skips unchanged upstream stages automatically):
-```bash
-dvc repro model_training
-```
-
-Push artifacts to DagHub remote:
-```bash
-dvc push
+dvc repro                    # run full pipeline
+dvc repro model_training     # run from specific stage
+dvc push                     # push artifacts to DagHub
 ```
 
 ---
 
 ## Promoting a Model to Production
 
-After training registers a new model version, promote it to the `@champion` alias via the DagHub UI or:
+After training registers a new model version, promote it to `@champion`:
 
 ```python
 import mlflow, dagshub
@@ -337,4 +422,6 @@ The API picks up the new model on next restart — no code changes, no file copy
 
 - **GitHub:** https://github.com/beneyalraj/wind_power_ml_project
 - **DagHub / MLflow:** https://dagshub.com/beneyalraj/wind_power_system
-- **Swagger UI:** `http://localhost:8000/docs` (when running locally)
+- **Live Dashboard:** http://13.219.46.116
+- **Live API Docs:** http://13.219.46.116/api/docs
+- **Dataset:** https://registry.opendata.aws/nrel-pds-windai

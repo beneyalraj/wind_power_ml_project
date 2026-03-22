@@ -1,13 +1,3 @@
-# =============================================================================
-# docker-compose.serve.yml — Wind Power Prediction Stack (Secured DMZ)
-#
-# ARCHITECTURE:
-#   Internet -> Nginx (Port 80) -> Internal Docker Network
-#                                    ├─> /api/* -> FastAPI (Port 8000)
-#                                    └─> /* -> Streamlit (Port 8501)
-# =============================================================================
-
-
 services:
 
   # ---------------------------------------------------------------------------
@@ -17,20 +7,23 @@ services:
     image: nginx:alpine
     container_name: wind-nginx
     ports:
-      - "80:80"                     # ONLY port exposed to the internet
+      - "80:80"                         # The ONLY port exposed to the internet
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./reports:/usr/share/nginx/html/report:ro
+      # reports/ mounted read-only — Nginx serves drift_report.html
+      # at http://<ip>/report after monitor runs
     depends_on:
       fastapi:
-        condition: service_healthy  # Wait for backend to be ready
+        condition: service_healthy
       streamlit:
-        condition: service_started  # Wait for UI container to boot
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - wind-network
 
   # ---------------------------------------------------------------------------
-  # FastAPI — Model Serving API (Hidden)
+  # FastAPI — Model Serving API (Hidden from internet)
   # ---------------------------------------------------------------------------
   fastapi:
     build:
@@ -38,25 +31,27 @@ services:
       dockerfile: ./Dockerfile.api
     container_name: wind-api
     expose:
-      - "8000"                      # Internal network access only
+      - "8000"                          # Internal network only — Nginx proxies
     env_file:
       - .env
     volumes:
-      - ./models:/app/models
-      - ./configs:/app/configs
-      - ./logs:/app/logs
+      - ./models:/app/models            # local joblib fallback
+      - ./configs:/app/configs          # feature_spec.yaml
+      - ./logs:/app/logs                # prediction logs — written here, read by monitor
+      # Note: reports/ NOT mounted here — FastAPI doesn't generate reports
     restart: unless-stopped
     networks:
       - wind-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
 
   # ---------------------------------------------------------------------------
-  # Streamlit — Interactive Dashboard (Hidden)
+  # Streamlit — Interactive Dashboard (Hidden from internet)
   # ---------------------------------------------------------------------------
   streamlit:
     build:
@@ -64,9 +59,9 @@ services:
       dockerfile: ./Dockerfile.streamlit
     container_name: wind-streamlit
     expose:
-      - "8501"                      # Internal network access only
+      - "8501"                          # Internal network only — Nginx proxies
     environment:
-      - API_URL=http://fastapi:8000
+      - API_URL=http://fastapi:8000     # Docker service name — not localhost
     depends_on:
       fastapi:
         condition: service_healthy
@@ -74,18 +69,37 @@ services:
     networks:
       - wind-network
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)"]
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
 
+  # ---------------------------------------------------------------------------
+  # Monitor — Evidently AI Drift Detection
+  # ---------------------------------------------------------------------------
+  monitor:
+    build:
+      context: .
+      dockerfile: ./Dockerfile.monitor
+    container_name: wind-monitor
+    profiles: ["manual"]
+
+    volumes:
+      - ./logs:/app/logs                # reads prediction log
+      - ./reports:/app/reports          # writes drift_report.html
+      - ./monitoring:/app/monitoring    # reads reference_data.csv
+    depends_on:
+      fastapi:
+        condition: service_healthy      # ensures model is loaded before monitoring
+    networks:
+      - wind-network
+    restart: "no"                       # runs once and exits — not a server
+
 # -----------------------------------------------------------------------------
-# Network & Volumes
+# Network
 # -----------------------------------------------------------------------------
 networks:
   wind-network:
     driver: bridge
-
-volumes:
-  logs:

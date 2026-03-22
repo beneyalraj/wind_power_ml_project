@@ -2,12 +2,14 @@ import os
 import uuid
 import logging
 import json
+from pathlib import Path
 from src.serving.config import settings
 from contextlib import asynccontextmanager
 from typing import List
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
+from datetime import datetime
 
 import joblib
-from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from src.serving.predictor import build_features
@@ -49,8 +51,8 @@ async def lifespan(app: FastAPI):
       true:            loads model from DagHub MLflow registry.
                        Requires MLFLOW_TRACKING_URI, USERNAME, PASSWORD.
                        Used in production — when a new model version is
-                       promoted to "Production" in the registry, the next
-                       restart picks it up automatically.
+                       promoted to the registry, the next restart picks
+                       it up automatically.
     """
     # --- Startup ---
     try:
@@ -61,7 +63,6 @@ async def lifespan(app: FastAPI):
             import mlflow
             import mlflow.sklearn
 
-            # Inject credentials so MLflow can authenticate with DagHub
             os.environ["MLFLOW_TRACKING_USERNAME"] = settings.mlflow_tracking_username
             os.environ["MLFLOW_TRACKING_PASSWORD"] = settings.mlflow_tracking_password
             mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
@@ -162,7 +163,42 @@ class BatchPredictionResponse(BaseModel):
     request_id:     str
 
 # -----------------------------
-# Shared prediction logic
+# 4. Prediction Logging (for Evidently drift monitoring)
+# -----------------------------
+def _log_prediction(records: List[dict], predictions: List[float]) -> None:
+    """
+    Appends every prediction to logs/predictions.jsonl for drift monitoring.
+
+    WHY JSONL (JSON Lines):
+      Each line is a complete JSON object — easy to append without
+      reading the whole file. Evidently reads it directly into a DataFrame.
+
+    WHY BackgroundTasks:
+      Disk writes are slow. Running in background means the API returns
+      the prediction immediately — log write happens after response is sent.
+
+    WHY try/except here:
+      A logging failure must never crash the prediction endpoint.
+      The user gets their prediction regardless.
+    """
+    log_path = Path("logs/predictions.jsonl")
+    log_path.parent.mkdir(exist_ok=True)
+
+    try:
+        with open(log_path, "a") as f:
+            for record, prediction in zip(records, predictions):
+                entry = {
+                    **record,
+                    "prediction_kw": prediction,
+                    "model_version": state.model_version,
+                    "timestamp":     datetime.utcnow().isoformat()
+                }
+                f.write(json.dumps(entry) + "\n")
+    except Exception as e:
+        logger.warning(f"Prediction logging failed (non-critical): {e}")
+
+# -----------------------------
+# 5. Shared prediction logic
 # -----------------------------
 def _run_prediction(records: List[dict], request_id: str) -> List[float]:
     """
@@ -187,7 +223,11 @@ def health_check():
 
 
 @app.post("/predict", response_model=PredictionResponse)
-def predict_power(data: PredictionRequest, request: Request):
+def predict_power(
+    data: PredictionRequest,
+    request: Request,
+    background_tasks: BackgroundTasks
+):
     """Single-record prediction endpoint."""
     request_id = getattr(request.state, "request_id", "unknown")
 
@@ -197,8 +237,12 @@ def predict_power(data: PredictionRequest, request: Request):
     logger.info(f"[{request_id}] /predict request: {data.model_dump()}")
 
     try:
-        results = _run_prediction([data.model_dump()], request_id)
+        records = [data.model_dump()]
+        results = _run_prediction(records, request_id)
         final_prediction = results[0]
+
+        # Log after response is sent — never blocks the user
+        background_tasks.add_task(_log_prediction, records, results)
 
         logger.info(f"[{request_id}] /predict result: {final_prediction} kW (model v{state.model_version})")
 
@@ -218,7 +262,11 @@ def predict_power(data: PredictionRequest, request: Request):
 
 
 @app.post("/predict_batch", response_model=BatchPredictionResponse)
-def predict_power_batch(data: List[PredictionRequest], request: Request):
+def predict_power_batch(
+    data: List[PredictionRequest],
+    request: Request,
+    background_tasks: BackgroundTasks
+):
     """
     Batch prediction endpoint — accepts up to 500 records per call.
     Passes the entire batch to model.predict() in one vectorized call,
@@ -240,6 +288,9 @@ def predict_power_batch(data: List[PredictionRequest], request: Request):
     try:
         records = [item.model_dump() for item in data]
         predictions = _run_prediction(records, request_id)
+
+        # Log after response is sent — never blocks the user
+        background_tasks.add_task(_log_prediction, records, predictions)
 
         logger.info(f"[{request_id}] /predict_batch result: {len(predictions)} predictions (model v{state.model_version})")
 
