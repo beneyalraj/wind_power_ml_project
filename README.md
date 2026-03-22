@@ -19,8 +19,11 @@ A production-grade ML system for predicting wind farm power output. Built with a
 | Streamlit Dashboard | http://13.219.46.116 |
 | FastAPI Swagger UI | http://13.219.46.116/api/docs |
 | Health Check | http://13.219.46.116/api/health |
+| Observability | http://13.219.46.116/report |
 
-<here goes your streamlit dashboard image>
+
+<img width="1433" height="811" alt="Screenshot 2026-03-21 at 8 55 49 PM" src="https://github.com/user-attachments/assets/6ad4dafa-8ee2-45b2-bcbd-23bc0cafb06c" />
+<img width="1433" height="695" alt="Screenshot 2026-03-21 at 8 56 52 PM" src="https://github.com/user-attachments/assets/bed3077f-2550-4767-b2b7-994d2345e9f0" />
 
 ---
 
@@ -39,13 +42,14 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 
 | Category | Technologies |
 |---|---|
-| **ML & Data** | scikit-learn, pandas, numpy, scipy, Pandera |
+| **ML & Data** | scikit-learn, pandas, numpy, scipy, Pandera, Joblib|
 | **MLOps** | DVC, MLflow, DagHub, Evidently AI |
-| **Serving** | FastAPI, Pydantic v2, Uvicorn, Streamlit |
-| **Infrastructure** | Docker, Nginx, AWS EC2, GitHub Actions |
-| **Orchestration** | Apache Airflow |
+| **Serving** | FastAPI, Pydantic v2, Uvicorn, Streamlit, Loguru |
+| **Infrastructure** | Docker, Nginx, AWS EC2, GitHub Actions|
+| **Orchestration** | Apache Airflow, Linux Crontab |
 | **Storage** | AWS S3, DagHub remote |
 | **Language** | Python 3.10 |
+| **Testing** | Pytest, HTTPX |
 
 ---
 
@@ -73,10 +77,10 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 │       ├── build_dataset         X/y separation, W → kW          │
 │       └── model_training        4 models → best selected        │
 │               │                                                 │
-│               ├── Enterprise Gate: R² ≥ 0.85, SMAPE ≤ 20%      │
+│               ├── Enterprise Gate: R² ≥ 0.85, SMAPE ≤ 20%       │
 │               │       PASS → register to MLflow                 │
 │               │       FAIL → abort, production unchanged        │
-│               └── DVC push → DagHub remote storage             │
+│               └── DVC push → DagHub remote storage              │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -93,24 +97,31 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 │                        SERVING LAYER                            │
 │                                                                 │
 │   Docker Compose (AWS EC2 t3.micro)                             │
-│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
-│   │    Nginx     │  │    FastAPI      │  │   Streamlit      │  │
-│   │   :80        │  │   :8000         │  │   :8501          │  │
-│   │              │  │                 │  │                  │  │
-│   │ /api/* ────► │  │ POST /predict   │◄─│ Input sliders    │  │
-│   │ /* ───────►  │  │ POST /predict   │  │ Power curve      │  │
-│   │              │  │   _batch        │  │ System info      │  │
-│   │ Reverse proxy│  │ GET  /health    │  │                  │  │
-│   │ Log rotation │  │ Pydantic v2     │  │ API_URL=         │  │
-│   │ Single port  │  │ Request tracing │  │ http://fastapi   │  │
-│   └──────────────┘  │ Model versioning│  │ :8000            │  │
-│                     └─────────────────┘  └──────────────────┘  │
-│                              │                                  │
-│                              ▼                                  │
-│              Evidently AI — drift monitoring                    │
+│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
+│   │    Nginx     │  │    FastAPI      │  │   Streamlit      │   │
+│   │   :80        │  │   :8000         │  │   :8501          │   │
+│   │              │  │                 │  │                  │   │
+│   │ /api/* ────► │  │ POST /predict   │◄─│ Input sliders    │   │
+│   │ /* ───────►  │  │ POST /predict   │  │ Power curve      │   │
+│   │ /report ──┐  │  │   _batch        │  │ System info      │   │
+│   │ (HTML)    │  │  │ GET  /health    │  │                  │   │
+│   │           │  │  │ Async Telemetry │  │ API_URL=         │   │
+│   │ Reverse   │  │  │(BackgroundTasks)│  │ http://fastapi   │   │
+│   │ Proxy     │  │  └────────┬────────┘  │ :8000            │   │
+│   └─────▲────────┘           │           └──────────────────┘   │
+│         │                    │ (JSONL logs)                     │
+│         │                    ▼                                  │
+│         │      ┌───────────────────────────┐                    │
+│         │      │  Shared Docker Volume     │                    │
+│         │      └─────────────┬─────────────┘                    │
+│         │                    │                                  │
+│         │                    ▼                                  │
+│         │      ┌───────────────────────────┐                    │
+│         └──────┤  Evidently AI Container   │                    │
+│                │  (Cron @ Weekly)          │                    │
+│                └───────────────────────────┘                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
 ---
 
 ## Dataset
@@ -197,11 +208,21 @@ wind_power_system/
 │   │   └── train_model.py             # multi-model training, gate check,
 │   │                                  # MLflow registration
 │   └── serving/
-│       ├── app.py                     # FastAPI — endpoints, middleware,
-│       │                              # lifespan, dual registry/local loading
+│       ├── app.py                     # FastAPI — Async telemetry logging,
+│       │                              # BackgroundTasks for JSONL creation
 │       ├── config.py                  # pydantic-settings, .env support
 │       ├── predictor.py               # feature engineering for inference
 │       └── streamlit_app.py           # interactive dashboard
+│
+├── monitoring/                        # Observability Microservice
+│   ├── monitor.py                     # Evidently AI — K-S Drift Detection
+│   └── reference_data.csv             # Baseline distribution for drift analysis
+│
+├── logs/                              # Persistent Telemetry
+│   └── predictions.jsonl              # Async production inference logs
+│
+├── reports/                           # Observability Dashboard
+│   └── drift_report.html              # Generated Evidently AI dashboard
 │
 ├── tests/
 │   ├── conftest.py                    # shared fixtures, mock model/registry
@@ -222,7 +243,7 @@ wind_power_system/
 │   └── dags/                          # pipeline DAG definitions
 │
 ├── nginx/
-│   └── nginx.conf                     # reverse proxy configuration
+│   └── nginx.conf                     # reverse proxy — Routes /report to HTML
 │
 ├── .github/workflows/
 │   ├── serve-ci.yml                   # CI — runs 38 tests on every push
@@ -235,15 +256,17 @@ wind_power_system/
 ├── requirements.txt                   # pinned production dependencies
 ├── requirements-dev.txt               # pinned dev/test dependencies
 ├── Dockerfile.api                     # FastAPI container
+├── Dockerfile.monitor                 # 🚀 NEW: Monitoring container
 ├── Dockerfile.streamlit               # Streamlit container
-├── docker-compose.serve.yml           # serving stack definition
+├── docker-compose.serve.yml           # serving stack — Shared Log Volume
 ├── docker-compose.serve.prod.yml      # production overrides
 ├── .env.example                       # config template
+├── .gitignore                         # 🚀 UPDATED: Shields secrets/heavy data
 └── README.md
 ```
 
----
 
+---
 ## Quick Start — Local Development
 
 ### Prerequisites
@@ -415,6 +438,38 @@ mlflow.MlflowClient().set_registered_model_alias(
 ```
 
 The API picks up the new model on next restart — no code changes, no file copying.
+
+---
+---
+## Model Monitoring & Observability
+A model is only as good as its last prediction. This project implements a full-cycle monitoring "sidecar" to detect Data Drift and Schema Violation.
+
+Asynchronous Telemetry: Inference inputs and predictions are logged to JSONL files using FastAPI BackgroundTasks. This ensures disk I/O for logging never blocks the high-speed inference response.
+
+Automated Drift Analysis: A scheduled Linux cron job triggers an isolated Evidently AI Docker container.
+
+Statistical Validation: The system performs Kolmogorov-Smirnov (K-S) tests to compare live production data distributions against the training baseline.
+
+Direct Reporting: Nginx is configured to serve the resulting interactive HTML drift reports at the /report endpoint for stakeholder review.
+
+---
+
+## Production Hardening & Reliability
+
+Nginx Reverse Proxy: Acts as a gateway, handling path-based routing for the API (/api), the Dashboard (/), and Monitoring (/report) on a single port (80).
+
+Decoupled Architecture: The monitoring stack is isolated from the serving stack. A failure in the drift analysis container cannot crash the live prediction API.
+
+Shared Volume Strategy: Utilizes Docker Volumes to bridge data between the FastAPI "Producer" and the Monitoring "Consumer" without exposing the internal filesystem.
+
+Enterprise Model Gating: The CI/CD pipeline includes an automated "Performance Gate" ($R^2 \geq 0.85$); models failing this threshold are blocked from the @champion alias in the registry.
+
+---
+## Quality Assurance & Testing
+
+100% Endpoint Coverage: 38+ integration tests using HTTPX to validate asynchronous API behavior and response schemas.
+
+Physics-Informed Validation: Unit tests ensure that engineered features (like $v^3$ and cyclical encoding) correctly represent the underlying aerodynamic laws before reaching the model.
 
 ---
 
