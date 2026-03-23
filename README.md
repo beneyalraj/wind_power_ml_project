@@ -12,6 +12,29 @@ A production-grade ML system for predicting wind farm power output. Built with a
 
 ---
 
+## Table of Contents
+
+- [Live Demo](#-live-demo)
+- [Business Context](#business-context)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Orchestration — Apache Airflow](#orchestration--apache-airflow)
+- [Dataset](#dataset)
+- [Model Performance](#model-performance)
+- [Model Monitoring & Observability](#model-monitoring--observability)
+- [Engineered Features](#engineered-features)
+- [Project Structure](#project-structure)
+- [Quick Start — Local Development](#quick-start--local-development)
+- [Production Mode](#production-mode--load-model-from-registry)
+- [API Reference](#api-reference)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [DVC Pipeline](#dvc-pipeline)
+- [Promoting a Model to Production](#promoting-a-model-to-production)
+- [Quality Assurance & Testing](#quality-assurance--testing)
+- [Links](#links)
+
+---
+
 ## 🚀 Live Demo
 
 | Service | URL |
@@ -19,11 +42,15 @@ A production-grade ML system for predicting wind farm power output. Built with a
 | Streamlit Dashboard | http://13.219.46.116 |
 | FastAPI Swagger UI | http://13.219.46.116/api/docs |
 | Health Check | http://13.219.46.116/api/health |
-| Observability | http://13.219.46.116/report |
+| Drift Report | http://13.219.46.116/report |
 
+*Streamlit dashboard showing live prediction with power curve analysis:*
 
-<img width="1433" height="811" alt="Screenshot 2026-03-21 at 8 55 49 PM" src="https://github.com/user-attachments/assets/6ad4dafa-8ee2-45b2-bcbd-23bc0cafb06c" />
-<img width="1433" height="695" alt="Screenshot 2026-03-21 at 8 56 52 PM" src="https://github.com/user-attachments/assets/bed3077f-2550-4767-b2b7-994d2345e9f0" />
+<img width="1433" height="811" alt="Streamlit dashboard with prediction result and power curve" src="https://github.com/user-attachments/assets/6ad4dafa-8ee2-45b2-bcbd-23bc0cafb06c" />
+
+*System information expander showing ML stack, pipeline steps, and model performance:*
+
+<img width="1433" height="695" alt="Streamlit system information panel" src="https://github.com/user-attachments/assets/bed3077f-2550-4767-b2b7-994d2345e9f0" />
 
 ---
 
@@ -42,14 +69,14 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 
 | Category | Technologies |
 |---|---|
-| **ML & Data** | scikit-learn, pandas, numpy, scipy, Pandera, Joblib|
+| **ML & Data** | scikit-learn, pandas, numpy, scipy, Pandera, joblib |
 | **MLOps** | DVC, MLflow, DagHub, Evidently AI |
-| **Serving** | FastAPI, Pydantic v2, Uvicorn, Streamlit, Loguru |
-| **Infrastructure** | Docker, Nginx, AWS EC2, GitHub Actions|
-| **Orchestration** | Apache Airflow, Linux Crontab |
+| **Serving** | FastAPI, Pydantic v2, Uvicorn, Streamlit |
+| **Infrastructure** | Docker, Nginx, AWS EC2, GitHub Actions |
+| **Orchestration** | Apache Airflow, Linux cron |
 | **Storage** | AWS S3, DagHub remote |
 | **Language** | Python 3.10 |
-| **Testing** | Pytest, HTTPX |
+| **Testing** | pytest, httpx |
 
 ---
 
@@ -77,10 +104,10 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 │       ├── build_dataset         X/y separation, W → kW          │
 │       └── model_training        4 models → best selected        │
 │               │                                                 │
-│               ├── Enterprise Gate: R² ≥ 0.85, SMAPE ≤ 20%       │
+│               ├── Enterprise Gate: R² ≥ 0.85, SMAPE ≤ 20%      │
 │               │       PASS → register to MLflow                 │
 │               │       FAIL → abort, production unchanged        │
-│               └── DVC push → DagHub remote storage              │
+│               └── DVC push → DagHub remote storage             │
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
@@ -97,31 +124,45 @@ This system predicts wind farm power output from atmospheric conditions, enablin
 │                        SERVING LAYER                            │
 │                                                                 │
 │   Docker Compose (AWS EC2 t3.micro)                             │
-│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐   │
-│   │    Nginx     │  │    FastAPI      │  │   Streamlit      │   │
-│   │   :80        │  │   :8000         │  │   :8501          │   │
-│   │              │  │                 │  │                  │   │
-│   │ /api/* ────► │  │ POST /predict   │◄─│ Input sliders    │   │
-│   │ /* ───────►  │  │ POST /predict   │  │ Power curve      │   │
-│   │ /report ──┐  │  │   _batch        │  │ System info      │   │
-│   │ (HTML)    │  │  │ GET  /health    │  │                  │   │
-│   │           │  │  │ Async Telemetry │  │ API_URL=         │   │
-│   │ Reverse   │  │  │(BackgroundTasks)│  │ http://fastapi   │   │
-│   │ Proxy     │  │  └────────┬────────┘  │ :8000            │   │
-│   └─────▲────────┘           │           └──────────────────┘   │
-│         │                    │ (JSONL logs)                     │
-│         │                    ▼                                  │
-│         │      ┌───────────────────────────┐                    │
-│         │      │  Shared Docker Volume     │                    │
-│         │      └─────────────┬─────────────┘                    │
+│   ┌──────────────┐  ┌─────────────────┐  ┌──────────────────┐  │
+│   │    Nginx     │  │    FastAPI      │  │   Streamlit      │  │
+│   │   :80        │  │   :8000         │  │   :8501          │  │
+│   │              │  │                 │  │                  │  │
+│   │ /api/* ────► │  │ POST /predict   │◄─│ Input sliders    │  │
+│   │ /* ───────►  │  │ POST /predict   │  │ Power curve      │  │
+│   │ /report ──┐  │  │   _batch        │  │ System info      │  │
+│   │ (HTML)    │  │  │ GET  /health    │  │                  │  │
+│   │           │  │  │ BackgroundTasks │  │ API_URL=         │  │
+│   │ Reverse   │  │  │ (async logging) │  │ http://fastapi   │  │
+│   │ Proxy     │  │  └────────┬────────┘  │ :8000            │  │
+│   └─────▲─────┘             │           └──────────────────┘  │
+│         │                   │ (JSONL logs)                     │
+│         │                   ▼                                  │
+│         │     ┌─────────────────────────────┐                  │
+│         │     │  Shared Docker Volume       │                  │
+│         │     │  logs/predictions.jsonl     │                  │
+│         │     └──────────────┬──────────────┘                  │
 │         │                    │                                  │
 │         │                    ▼                                  │
-│         │      ┌───────────────────────────┐                    │
-│         └──────┤  Evidently AI Container   │                    │
-│                │  (Cron @ Weekly)          │                    │
-│                └───────────────────────────┘                    │
+│         │     ┌─────────────────────────────┐                  │
+│         └─────┤  Evidently AI Container     │                  │
+│               │  profiles: manual           │                  │
+│               │  cron: weekly @ 2am Mon     │                  │
+│               └─────────────────────────────┘                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Orchestration — Apache Airflow
+
+The training pipeline is orchestrated locally using Apache Airflow. Airflow manages task dependencies, retries, and scheduling — triggering the DVC pipeline stages in the correct order.
+
+*Airflow DAG view showing the wind power training pipeline:*
+
+<img width="1427" height="799" alt="Screenshot 2026-03-21 at 9 18 12 PM" src="https://github.com/user-attachments/assets/8b1163a4-257e-4643-b38f-db66bfa16ed6" />
+
+
 ---
 
 ## Dataset
@@ -143,7 +184,9 @@ This project uses the **NREL Wind AI Bench** dataset, a publicly available bench
 
 ## Model Performance
 
-<here goes your mlflow experiments image>
+*MLflow experiment tracking showing multiple model runs and metrics comparison:*
+
+<img width="1440" height="811" alt="MLflow experiments showing model runs and metrics" src="https://github.com/user-attachments/assets/0c09074a-a301-4fff-b740-89710b311609" />
 
 | Metric | Value | Gate |
 |---|---|---|
@@ -156,6 +199,46 @@ This project uses the **NREL Wind AI Bench** dataset, a publicly available bench
 | Validation SMAPE | 15.97% | ✅ ≤ 20% |
 
 Models are only registered to production if they pass **both** gate thresholds. If a model fails, the registry is unchanged and the previous version continues serving.
+
+---
+
+## Model Monitoring & Observability
+
+A model is only as good as its last prediction. This project implements production drift monitoring to detect when the model's input distribution shifts away from its training baseline.
+
+**How it works:**
+
+1. **Async telemetry** — every prediction input and output is logged to `logs/predictions.jsonl` using FastAPI `BackgroundTasks`. The disk write happens after the response is returned — zero latency impact on inference.
+
+2. **Drift detection** — an isolated Evidently AI Docker container reads the prediction log, compares the live distribution against the training baseline using Kolmogorov-Smirnov tests, and generates an interactive HTML report.
+
+3. **Report serving** — Nginx serves the report directly at `/report`. No SSH required — accessible to anyone with the URL.
+
+4. **Scheduled** — a Linux cron job on EC2 triggers the monitor container every Monday at 2am automatically.
+
+*Evidently AI drift report showing feature distribution comparison:*
+
+<img width="1424" height="811" alt="Evidently AI drift report showing feature distributions" src="https://github.com/user-attachments/assets/02f365e9-370f-4fb0-8ebf-e51bba4ab356" />
+
+**Run monitoring manually:**
+
+```bash
+# Trigger the monitor container on EC2
+docker-compose -f docker-compose.serve.yml \
+               --profile manual run --rm monitor
+
+# View the report
+open http://13.219.46.116/report
+```
+
+**Cron schedule (EC2):**
+```bash
+# Runs every Monday at 2am
+0 2 * * 1 cd ~/wind_power_ml_project && \
+  docker-compose -f docker-compose.serve.yml \
+  --profile manual run --rm monitor \
+  >> logs/monitor_cron.log 2>&1
+```
 
 ---
 
@@ -208,21 +291,21 @@ wind_power_system/
 │   │   └── train_model.py             # multi-model training, gate check,
 │   │                                  # MLflow registration
 │   └── serving/
-│       ├── app.py                     # FastAPI — Async telemetry logging,
-│       │                              # BackgroundTasks for JSONL creation
+│       ├── app.py                     # FastAPI — endpoints, BackgroundTasks
+│       │                              # async logging, dual registry loading
 │       ├── config.py                  # pydantic-settings, .env support
 │       ├── predictor.py               # feature engineering for inference
 │       └── streamlit_app.py           # interactive dashboard
 │
-├── monitoring/                        # Observability Microservice
-│   ├── monitor.py                     # Evidently AI — K-S Drift Detection
-│   └── reference_data.csv             # Baseline distribution for drift analysis
+├── monitoring/
+│   ├── monitor.py                     # Evidently AI — K-S drift detection
+│   └── reference_data.csv             # training baseline for drift analysis
 │
-├── logs/                              # Persistent Telemetry
-│   └── predictions.jsonl              # Async production inference logs
+├── logs/
+│   └── predictions.jsonl              # async prediction log (gitignored)
 │
-├── reports/                           # Observability Dashboard
-│   └── drift_report.html              # Generated Evidently AI dashboard
+├── reports/
+│   └── drift_report.html              # generated Evidently report (gitignored)
 │
 ├── tests/
 │   ├── conftest.py                    # shared fixtures, mock model/registry
@@ -243,7 +326,7 @@ wind_power_system/
 │   └── dags/                          # pipeline DAG definitions
 │
 ├── nginx/
-│   └── nginx.conf                     # reverse proxy — Routes /report to HTML
+│   └── nginx.conf                     # reverse proxy — /api, /, /report routing
 │
 ├── .github/workflows/
 │   ├── serve-ci.yml                   # CI — runs 38 tests on every push
@@ -256,17 +339,17 @@ wind_power_system/
 ├── requirements.txt                   # pinned production dependencies
 ├── requirements-dev.txt               # pinned dev/test dependencies
 ├── Dockerfile.api                     # FastAPI container
-├── Dockerfile.monitor                 # 🚀 NEW: Monitoring container
 ├── Dockerfile.streamlit               # Streamlit container
-├── docker-compose.serve.yml           # serving stack — Shared Log Volume
-├── docker-compose.serve.prod.yml      # production overrides
+├── Dockerfile.monitor                 # Evidently monitoring container
+├── docker-compose.serve.yml           # serving stack definition
+├── docker-compose.serve.prod.yml      # production overrides (log rotation,
+│                                      # restart: always)
 ├── .env.example                       # config template
-├── .gitignore                         # 🚀 UPDATED: Shields secrets/heavy data
 └── README.md
 ```
 
-
 ---
+
 ## Quick Start — Local Development
 
 ### Prerequisites
@@ -297,18 +380,24 @@ cp .env.example .env
 ### 3. Run with Docker (recommended)
 
 ```bash
+# Local development
 docker compose -f docker-compose.serve.yml up --build
 # Dashboard:  http://localhost
 # API docs:   http://localhost/api/docs
+
+# Production mode (EC2)
+docker-compose -f docker-compose.serve.yml \
+               -f docker-compose.serve.prod.yml \
+               up -d --build
 ```
 
 ### 4. Run without Docker
 
 ```bash
-# Terminal 1
+# Terminal 1 — API
 uvicorn src.serving.app:app --reload
 
-# Terminal 2
+# Terminal 2 — Dashboard
 streamlit run src/serving/streamlit_app.py
 ```
 
@@ -338,7 +427,9 @@ Restart the API — it downloads and loads `WindPowerPredictor@champion` at star
 
 ## API Reference
 
-<here goes your swagger UI image>
+*FastAPI Swagger UI showing interactive API documentation:*
+
+<img width="1426" height="811" alt="FastAPI Swagger UI with interactive endpoints" src="https://github.com/user-attachments/assets/fc0397f5-dc36-48e9-b95f-873715e5641c" />
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -378,7 +469,14 @@ Every response includes a `request_id` (UUID4) attached via middleware and echoe
 ## CI/CD Pipeline
 
 ### Continuous Integration
+
 Runs automatically on every push to `main` when serving code or tests change.
+
+*GitHub Actions CI showing all tests passing:*
+
+<img width="1440" height="812" alt="GitHub Actions CI pipeline passing" src="https://github.com/user-attachments/assets/b4f6d3d5-193e-4bb5-8530-03696f3b8a41" />
+
+<img width="1425" height="813" alt="GitHub Actions CI test results" src="https://github.com/user-attachments/assets/48e0285c-1eae-46b4-a159-d402fccd56f1" />
 
 ```
 push to main
@@ -390,7 +488,12 @@ pytest tests/ -v (38 tests)
 ```
 
 ### Continuous Deployment
-Manual trigger — deploy only when you decide it's ready.
+
+Manual trigger only — deploy when you decide it's ready.
+
+*GitHub Actions CD manual deployment to EC2:*
+
+<img width="1440" height="732" alt="GitHub Actions CD deployment to AWS EC2" src="https://github.com/user-attachments/assets/fd42f1dd-3214-4b6e-9c44-0efcc31a1f9f" />
 
 ```
 GitHub Actions → Deploy to EC2 → Run workflow
@@ -400,7 +503,7 @@ SSH into EC2
 git reset --hard origin/main
     ↓
 docker-compose down
-docker-compose up -d --build
+docker-compose up -d --build --remove-orphans
     ↓
 docker image prune -af
 ```
@@ -408,6 +511,13 @@ docker image prune -af
 ---
 
 ## DVC Pipeline
+
+The 9-stage training pipeline is defined as code in `dvc.yaml`. DVC tracks data versions, caches intermediate outputs, and only reruns stages whose dependencies have changed.
+
+*DVC pipeline DAG showing stage dependencies:*
+
+<img width="1323" height="773" alt="Screenshot 2026-03-21 at 9 07 09 PM" src="https://github.com/user-attachments/assets/f3c96645-2d0c-4dfb-b4cd-8f7b9439d016" />
+
 
 ```
 data_ingestion → validate_raw → extract_scenario_dataset
@@ -417,19 +527,21 @@ data_ingestion → validate_raw → extract_scenario_dataset
 
 ```bash
 dvc repro                    # run full pipeline
-dvc repro model_training     # run from specific stage
-dvc push                     # push artifacts to DagHub
+dvc repro model_training     # run from specific stage only
+dvc push                     # push artifacts to DagHub remote
 ```
 
 ---
 
 ## Promoting a Model to Production
 
-After training registers a new model version, promote it to `@champion`:
+After training registers a new model version, promote it to the `@champion` alias:
 
 ```python
 import mlflow, dagshub
+
 dagshub.init(repo_owner='beneyalraj', repo_name='wind_power_system', mlflow=True)
+
 mlflow.MlflowClient().set_registered_model_alias(
     name='WindPowerPredictor',
     alias='champion',
@@ -440,36 +552,32 @@ mlflow.MlflowClient().set_registered_model_alias(
 The API picks up the new model on next restart — no code changes, no file copying.
 
 ---
----
-## Model Monitoring & Observability
-A model is only as good as its last prediction. This project implements a full-cycle monitoring "sidecar" to detect Data Drift and Schema Violation.
 
-Asynchronous Telemetry: Inference inputs and predictions are logged to JSONL files using FastAPI BackgroundTasks. This ensures disk I/O for logging never blocks the high-speed inference response.
-
-Automated Drift Analysis: A scheduled Linux cron job triggers an isolated Evidently AI Docker container.
-
-Statistical Validation: The system performs Kolmogorov-Smirnov (K-S) tests to compare live production data distributions against the training baseline.
-
-Direct Reporting: Nginx is configured to serve the resulting interactive HTML drift reports at the /report endpoint for stakeholder review.
-
----
-
-## Production Hardening & Reliability
-
-Nginx Reverse Proxy: Acts as a gateway, handling path-based routing for the API (/api), the Dashboard (/), and Monitoring (/report) on a single port (80).
-
-Decoupled Architecture: The monitoring stack is isolated from the serving stack. A failure in the drift analysis container cannot crash the live prediction API.
-
-Shared Volume Strategy: Utilizes Docker Volumes to bridge data between the FastAPI "Producer" and the Monitoring "Consumer" without exposing the internal filesystem.
-
-Enterprise Model Gating: The CI/CD pipeline includes an automated "Performance Gate" ($R^2 \geq 0.85$); models failing this threshold are blocked from the @champion alias in the registry.
-
----
 ## Quality Assurance & Testing
 
-100% Endpoint Coverage: 38+ integration tests using HTTPX to validate asynchronous API behavior and response schemas.
+The test suite covers three critical areas:
 
-Physics-Informed Validation: Unit tests ensure that engineered features (like $v^3$ and cyclical encoding) correctly represent the underlying aerodynamic laws before reaching the model.
+**API integration tests (27 tests — `tests/test_api.py`)**
+- Happy path: valid request returns 200, correct response schema, positive float prediction
+- Request tracing: `X-Request-ID` header present on every response, body ID matches header
+- Domain constraints: negative model output is clipped to exactly 0.0 (regression guard)
+- Pydantic validation: all five field constraints enforced (negative wind speed, direction > 360, etc.)
+- Batch endpoint: count parity, non-negative outputs, empty/oversized batch guards
+
+**Predictor unit tests (11 tests — `tests/test_predictor.py`)**
+- Mathematical correctness of each engineered feature (sin/cos values, v², v³, wake formula)
+- Feature ordering matches training order — a silent reordering produces wrong predictions
+- Edge cases: zero wind speed, north wind direction, missing feature names
+
+**Test isolation**
+- All tests run without real model files — `conftest.py` mocks the model, filesystem, and MLflow registry
+- Two separate fixtures: `client` (happy path, 5000 kW output) and `negative_output_client` (−999 kW, tests domain clipping)
+- `scope="module"` means the app boots once per test module — mirrors production startup cost
+
+```bash
+pytest tests/ -v
+# 38 passed
+```
 
 ---
 
@@ -479,4 +587,5 @@ Physics-Informed Validation: Unit tests ensure that engineered features (like $v
 - **DagHub / MLflow:** https://dagshub.com/beneyalraj/wind_power_system
 - **Live Dashboard:** http://13.219.46.116
 - **Live API Docs:** http://13.219.46.116/api/docs
+- **Drift Report:** http://13.219.46.116/report
 - **Dataset:** https://registry.opendata.aws/nrel-pds-windai
