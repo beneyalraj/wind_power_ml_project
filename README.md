@@ -37,6 +37,8 @@ A production-grade ML system for predicting wind farm power output. Built with a
 
 ## 🚀 Live Demo
 
+Project is not live on AWS due to free tier exhaustion, please refer screenshots of output and architecture diagrams to know more
+
 | Service | URL |
 |---|---|
 | Streamlit Dashboard | http://13.219.46.116 |
